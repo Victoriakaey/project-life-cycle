@@ -1,0 +1,46 @@
+# Milestone-Done Gate
+
+A milestone is "done" only when all of the following are true. Anything else is "code-complete, not done."
+
+## Hard gates
+
+- [ ] All planned tasks closed (each with a journal entry).
+- [ ] All Important review findings either fixed or written to backlog with Trigger + Exit criteria.
+- [ ] **S1-tier findings:** zero open (S2 / S3 OK with follow-up issues — see `findings-tier.md`).
+- [ ] Automated test suite green (unit + integration + relevant E2E).
+- [ ] Coverage at or above the project floor.
+- [ ] Linter / formatter / type checker clean across changed files.
+- [ ] Generated artifacts (schema, types, migrations) regenerated and committed.
+- [ ] Pre-commit run on all changed files locally before final push.
+- [ ] **Phase handoff doc exists** at `docs/handoff/YYYY-MM-DD-phase-X.Y-handoff.md` and follows the 8-section structure in `references/handoff-template.md`.
+- [ ] **PR description copies handoff §1 + §4 summary + §7** (template in handoff appendix).
+- [ ] PR opened, CI green, merged to main.
+- [ ] If the milestone introduced user-visible surface: **dual-track smoke** done — Track A manual checklist run end-to-end (real browser / device) + Track B Playwright (or equivalent) green. See `smoke-tracks.md`.
+
+## Documentation gates
+
+- [ ] `RESUME.md` updated with the milestone's progress section + commit SHAs.
+- [ ] `iteration-journal.md` has an entry for every task.
+- [ ] Backlog files updated for any deferred items.
+- [ ] Project-wide Q&A log appended with milestone completion record.
+- [ ] ADRs created for any architectural decisions made during the milestone.
+- [ ] If new dependencies were adopted: README installation / setup instructions updated.
+- [ ] Phase handoff doc references the spec / plan / smoke checklist (cross-link sanity).
+- [ ] All locked design decisions in the spec carry an evidence-strength tag (🟢 / 🟡 / 🔴) — 🔴 entries explicitly flagged for higher-priority review.
+
+## Validation gates
+
+- [ ] No journal entry has an empty "Plan deviations" body without explicit "none" (use the schema in `journal-schema.md`).
+- [ ] No "Important" or "Critical" review findings are open without resolution.
+- [ ] No Critical finding was downgraded to Important without explicit justification in the journal.
+- [ ] The smoke checklist (if applicable) covers the milestone's headline user flows, not just unit-test surfaces.
+
+## When to roll back
+
+If a milestone fails the gate, the milestone is not done. Don't ship. Options:
+
+1. Add a closing task that addresses the failing gate.
+2. Defer the gap to backlog (only for non-blocking items).
+3. Roll back the merge if the gap is a regression.
+
+The gate is the line. Crossing it without fixing is a process violation.
