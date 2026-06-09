@@ -63,6 +63,19 @@ Track A catches what humans see; Track B catches what code asserts. Neither is s
 - Real keyboard / mouse interactions on quirky widgets — that's Track A
 - Performance perception — neither track; needs a separate perf harness
 
+### Track B Golden Rules (Playwright baseline)
+
+Adopted from the Playwright Skill ecosystem (lackeyjb/playwright-skill, agentmantis/test-skills, neonwatty/qa-skills). Apply unless project's E2E framework conventions override:
+
+1. **`getByRole()` locators first** — a11y-tree-based, semantic, survives DOM refactors. Fall back to `getByLabel` / `getByText` / `getByTestId` in that order. Never CSS / XPath unless no alternative.
+2. **Auto-retry waits, never `waitForTimeout(N)`** — `expect(locator).toBeVisible()` / `toHaveText()` retry built-in. Fixed timeouts = flake fuel.
+3. **Assert on user-visible state** — "User sees 'Order #123 confirmed'" beats "third div has class `.confirmed`". DOM-structure assertions break on refactor.
+4. **Test isolation + fixtures over `beforeEach`** — each test creates its own data + cleans up; Playwright fixtures are typed + parallelizable + auto-cleanup. `beforeEach` is shared state in disguise.
+5. **POM when flows repeat** (2+ tests) — encapsulate page interactions behind a class. Premature POM for one-offs = overhead.
+6. **Trace + screenshot on failure** — config `trace: 'retain-on-failure'` + `screenshot: 'only-on-failure'`. Cheap debugging gold.
+
+Full reference for E2E pattern depth: lackeyjb/playwright-skill (10 Golden Rules + 46 core guides) or agentmantis/test-skills.
+
 ## Coordination
 
 The smoke checklist (Track A) and the Playwright spec (Track B) should reference each other:
@@ -78,9 +91,9 @@ Track A passes, Track B fails → **debug Track B first.** Either the test is wr
 
 ## Test runner one-liner
 
-A `make phase-checks PHASE=X.Y` (or equivalent) target should run pytest + vitest + Playwright scoped to the phase. Its output feeds the handoff doc §5 + §6.
+A `make phase-checks PHASE=X.Y` (or equivalent task-runner target) should run the project's BE tests + FE unit tests + E2E suite scoped to the phase. Its output feeds the handoff doc §5 + §6.
 
-Example shape (Makefile):
+Example shape for a Python BE + Node FE project (adapt to your stack):
 ```make
 phase-checks:
 	cd backend && pytest $$( [ -n "$$PHASE" ] && echo "-k $$PHASE" || echo "" ) -q
@@ -88,7 +101,7 @@ phase-checks:
 	cd frontend && pnpm exec playwright test $$( [ -n "$$PHASE" ] && echo "e2e/m$$PHASE-*.spec.ts" || echo "" )
 ```
 
-Project-specific adjustments (test runner, language) go in the project's CLAUDE.md; this skill enforces the pattern.
+For other stacks substitute equivalents — e.g. Go + React: `go test ./...` + `pnpm test` + `playwright test`; Rust + Svelte: `cargo test` + `vitest` + `playwright test`. The skill enforces the pattern (one-command phase-scoped check); the commands are project-specific and live in the project's CLAUDE.md.
 
 ## Anti-patterns
 

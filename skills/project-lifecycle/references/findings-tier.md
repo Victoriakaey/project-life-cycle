@@ -82,6 +82,8 @@ Stable IDs: `F1`, `F2`, ... per phase. Once assigned, the ID does NOT change eve
   - Defer to: next polish phase or the milestone where the underlying aggregation infra lands
 ```
 
+Localized labels (e.g. translated S1/S2/S3 headers in any target language) can be added in the project's own copy of the template via the project's `CLAUDE.md`, but the skill ships the English form only.
+
 ## Anti-patterns
 
 - Marking everything S1 to be "safe" — slows shipping; reviewers stop trusting tier signal.

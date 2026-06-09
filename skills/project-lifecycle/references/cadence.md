@@ -1,33 +1,270 @@
 # Per-Task Cadence
 
-Five steps per task. Each is a separate, observable artifact (subagent dispatch, commit, or both).
+Six steps per task by default (was five; **step 1.5 acceptance verifier** added 2026-05-27). Each is a separate, observable artifact (subagent dispatch, commit, or both).
 
-## Step 1: Dispatch implementer subagent
+For phases spanning backend + frontend, **step 1 splits into 1a (backend builder) + 1b (frontend builder)** per `builder-split.md`. Layer-pure phases use a single builder.
 
-Controller (the orchestrating agent) prepares the implementer prompt:
+## Step 1: Dispatch implementer subagent(s)
+
+**Cross-layer phases** → split into 1a backend-builder + 1b frontend-builder. See `builder-split.md` for the folder-scoped pattern, prompt templates, and Builder Summary format. The shared discipline below applies to BOTH builders (and to the single-implementer case on layer-pure phases).
+
+Controller (the orchestrating agent) prepares each implementer prompt:
 
 - **Full task text** from the plan (don't make the subagent read the plan file).
-- **Scene-setting context** — what previous tasks built that this one depends on.
+- **Acceptance Criteria this task closes** — explicit AC IDs from `user-story.md` (e.g., "this task closes AC3, AC4"). Builder pre-flight block MUST restate which ACs it's targeting.
+- **Scene-setting context** — what previous tasks built that this one depends on. For frontend builder, this includes the Backend Summary verbatim (see `builder-split.md`).
+- **Folder-scope clause (mandatory on split phases)** — explicit allowed write paths from `CLAUDE.md` `folder-map`; explicit forbidden paths. Controller rejects any diff touching forbidden paths.
 - **Adapt-to-existing-patterns guidance** — when the plan was written before the codebase matured, the live code may have established conventions (typed wrappers, helper objects, naming) that the plan snippet doesn't reflect. The controller MUST tell the implementer to use the live conventions, not blindly copy the plan.
 - **First-of-its-kind detection** — if this task is the first to introduce a new tooling category (test runner, language toolchain, container runtime, contract format, etc.), the controller MUST either insert a bootstrap step or list the missing infra in the prompt.
+- **Test priority confirmation (when task involves tests)** — controller MUST confirm with the user which behaviors matter most BEFORE the implementer writes tests. You can't test everything. Critical paths + complex logic, not exhaustive edge-case enumeration. Surface the proposed test list to the user; let them prune. Note: **acceptance tests are NOT the builder's job** — they're written in step 1.5 by an independent verifier against `user-story.md` ACs. Builder writes unit + integration tests for the code it produces.
+- **Vertical-slice TDD enforcement** — implementer MUST work in tracer-bullet cycles: 1 test → minimal impl → next test → minimal impl. Never write all tests first then all impl ("horizontal slicing" produces tests that verify imagined shape, not real behavior, and pass when behavior actually breaks). Refactor only while GREEN.
+- **Pre-flight assumption block (MANDATORY before any code)** — implementer MUST output an assumption block BEFORE writing the first line of code. Format:
+  ```
+  ## Pre-flight
+  Assumptions (3+):
+    1. [about input shape / data source / existing pattern / integration point]
+    2. ...
+    3. ...
+  Alternative interpretations of the task (if any):
+    - [interpretation A] vs [interpretation B] → I'm picking A because [reason]
+    - or: "single unambiguous reading, no alternatives"
+  Simpler approach considered:
+    - [the dumbest thing that could work] → rejected because [reason]
+    - or: "this IS the simplest approach"
+  STOP here. Wait for controller confirmation. No silent picks.
+  ```
+  Controller reviews → confirms / corrects / surfaces to user if ambiguity is real → implementer proceeds. Rationale: LLM default behavior is wrong-assumption-then-run; the block forces surface-before-code. Karpathy: "they make wrong assumptions on your behalf and just run along with them without checking."
+- **Surgical scope (MANDATORY clause in implementer brief)** —
+  ```
+  Surgical scope rules:
+    - Touch ONLY files/lines tracing directly to this task text.
+    - Do NOT reformat, rename, or "improve" adjacent code.
+    - Do NOT remove pre-existing dead code, even if obviously unused, unless the task asks for it.
+    - Do NOT modify comments you didn't author UNLESS the task changes their meaning.
+    - If you notice an unrelated issue (bug / dead code / smell) → log it in the journal "Findings" section; do NOT fix it in this commit.
+    - Every changed line must trace to a sentence in the task text.
+  ```
+  Rationale: Karpathy: "they sometimes change/remove comments and code they don't understand as side effects, even if it is orthogonal to the task at hand." Surgical-scope clause is the counter-instruction.
 - **Status reporting format** — DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT.
+- **Builder Summary on completion** — required on split-phase dispatches; recommended on single-implementer dispatches. Schema in `builder-split.md` §Builder Summary format. Frontend builder's input includes the Backend Summary; mismatch flags go BACK to backend builder, never silently massaged on the client.
 
 The implementer commits the work as a `feat(...)` (or `test(...)` / `fix(...)` if appropriate) commit and reports back.
 
-## Step 2: Spec compliance review
+## Step 1.5: Acceptance verifier
 
-Independent subagent. Lens: **did the implementer build exactly what the plan asked for, no more, no less?**
+**Independent subagent.** Distinct from the unit/integration tests the builder wrote in step 1. Lens: **does the feature actually do what `user-story.md` says it should, judged from outside the system?**
 
-- Verify each spec bullet is addressed in code.
-- Flag missing requirements (under-build).
-- Flag added features beyond spec (over-build).
-- Flag misinterpretations (built the wrong thing).
+Required when `user-story.md` exists (i.e., any user-observable phase). Skip only for layer-pure refactor / dep bump / docs phases that produced no `user-story.md`.
 
-Output: ✅ Spec compliant OR ❌ Issues found (with file:line references).
+### Dispatch contract
 
-If issues found, the same implementer fixes them in a `fix(...)` commit. Re-review until clean.
+```
+You are the ACCEPTANCE VERIFIER for phase X.Y.
+
+Inputs (read these, do NOT read the implementation source code):
+- docs/superpowers/specs/<...>-user-story.md (acceptance criteria, ground truth)
+- Backend Summary + Frontend Summary from step 1 (what was built + API contract)
+
+Job:
+1. For each AC in user-story.md, write exactly one acceptance test.
+2. Test names MUST encode the AC ID: `test_AC3_<short_description>`.
+3. Tests exercise the system from outside (HTTP call / UI interaction / DB query as
+   observable side-effect / emitted event capture). Do NOT call internal functions
+   directly — that's a unit test, not an acceptance test.
+4. Use the existing test framework + fixtures the project already has.
+5. Place tests in tests/acceptance/phase-X.Y/ (or project-equivalent path).
+
+What you do NOT do:
+- Modify backend or frontend source code (read-only on src/).
+- Invent acceptance tests for behaviors not in user-story.md ACs.
+- Mark an AC as "covered" if you can only observe it via internals.
+- Silently skip an AC because it's "hard to test" — report it as UNTESTABLE
+  with the specific reason; controller surfaces to user.
+
+Allowed tools: Read, Edit/Write (LIMITED to tests/acceptance/* and test fixtures), Bash (test runner).
+
+Output (mandatory):
+
+## Acceptance Verifier Report — Phase X.Y
+
+### AC Coverage Table
+| AC  | Test name                          | Status   | Notes                           |
+|-----|------------------------------------|----------|---------------------------------|
+| AC1 | test_AC1_user_can_register         | ✅ PASS  |                                 |
+| AC2 | test_AC2_email_validation          | ❌ FAIL  | Returns 500 not 400 on bad email|
+| AC3 | test_AC3_admin_audit_log_written   | ✅ PASS  |                                 |
+| AC4 | (none)                             | ⚠ UNTESTABLE | No external observation; only logged at DEBUG. Promote to log capture or expose via /audit endpoint. |
+
+### Summary
+- ACs total: N
+- Passing: N
+- Failing: N (with file:line of failure)
+- Untestable: N (with reason for each)
+
+### Failures (full pytest/vitest output blocks)
+{verbatim test output for each fail}
+
+### Recommended next action
+- FAIL on AC2 → goes to BACKEND builder (input validation in src/api/...)
+- UNTESTABLE on AC4 → needs spec amendment (expose audit log) before retry
+```
+
+### Routing failures
+
+- **AC fails because the code is wrong** → fix dispatch to the builder owning that layer (BE or FE).
+- **AC fails because the test is wrong** (verifier misread the AC) → re-dispatch verifier with the correction.
+- **AC marked UNTESTABLE because the system has no external observation** → spec gap; surface to user. Options: amend the spec to expose observation (add endpoint / emit event / log to capturable channel), or accept AC as "manual-only" + log in handoff §findings.
+- **Verifier wants to modify source code to make a test pass** → REJECT. Verifier is read-only on `src/`. If the impl is wrong, route to builder.
+
+### Acceptance tests live separately from unit tests
+
+- `tests/unit/` — builder's responsibility, white-box, tests internal correctness
+- `tests/integration/` — builder's responsibility, tests inter-module behavior
+- `tests/acceptance/` — verifier's responsibility, black-box, tests AC satisfaction
+
+Different lifecycles. Unit tests change when impl changes; acceptance tests change when ACs change. Don't conflate.
+
+### Commit
+
+Acceptance verifier commits as `test(acceptance): phase X.Y AC1-N coverage` — separate from builder's `feat(...)` commit. Failed-then-fixed flows get a follow-up `fix(...)` commit from the builder, then the verifier re-runs (no new commit if tests didn't change).
+
+## Step 2: Spec + AC compliance review (Validator)
+
+Independent subagent. **Strictly read-only on source.** Lens: **does the implementation satisfy the user story and spec, with no scope drift in either direction?**
+
+### Dispatch contract
+
+```
+You are the VALIDATOR for phase X.Y.
+
+Inputs (read-only):
+- docs/superpowers/specs/<...>-user-story.md (ground truth for "what was promised")
+- docs/superpowers/specs/<...>-design.md (spec)
+- docs/superpowers/plans/<...>.md (plan)
+- Builder Summaries from step 1
+- Acceptance Verifier Report from step 1.5
+- Implementation source on disk (git diff vs base branch)
+
+What you do (every check, every run):
+0. Lie detection (FIRST pass, before everything else):
+   - For each AC the Builder Summary claims as "closed": does the diff
+     actually touch code that could close that AC? If the summary says
+     "AC3 closed" but no file in the diff implements AC3's behavior,
+     OR the acceptance verifier reported FAIL for AC3, that's a lie
+     → CRITICAL with the file:line of the false claim.
+   - For each "success" assertion in the implementation (e.g., a tool
+     call that logs "sent email" / "saved record" / "logged in user"):
+     does the code actually do the asserted thing, or does it only log
+     the assertion without performing the action? Compare against the
+     acceptance verifier's tool-trace report. False success = lie =
+     CRITICAL.
+   - For any "verified" / "tested" / "works" claim in builder
+     summaries: trace to the actual test result (acceptance verifier
+     report). Unverifiable claim = CRITICAL.
+   Rationale: LLMs default to claiming success because the training
+   reward favored confident outputs. The validator is the read-only
+   harness component that catches this. (See Tejas Kumar's "Harnesses in
+   AI: A Deep Dive" (https://www.youtube.com/watch?v=C_GG5g38vLU) — the lying-agent demo at hacker-news
+   shows exactly this failure mode.)
+1. Acceptance criteria coverage:
+   - For each AC, is there a passing acceptance test? (cross-check with verifier report)
+   - For each AC, can you trace its implementation in the diff?
+   - Any AC marked covered without a passing test → CRITICAL.
+2. Out-of-scope drift:
+   - Any code change that doesn't trace to an AC → flag (over-build / scope creep).
+   - Any item from user-story.md "Out of Scope" that snuck in → CRITICAL.
+3. Spec adherence:
+   - Are the data model / API / file changes from spec.md actually in the diff?
+   - Any spec bullet missing from code → CRITICAL.
+   - Any new infra not listed in spec → flag (over-build or required infra-spec amendment).
+4. Folder boundary (on split phases):
+   - BE builder touched only backend paths? FE only frontend?
+   - Any forbidden cross-imports (per folder-map.forbidden-cross)?
+5. CLAUDE.md / convention adherence:
+   - Any pattern divergence from established codebase conventions?
+   - Any duplicate logic that should reuse an existing helper?
+6. Security (per `security-reviewer` lens but read-only):
+   - Auth checks on new endpoints?
+   - Tenant isolation on multi-tenant queries?
+   - Secrets/PII in logs?
+   - Raw errors leaking to clients?
+7. Edge-case coverage from user-story.md "Edge Cases" section:
+   - Timezone / multi-tenant / retry-safety items that the spec called out — actually handled in code?
+
+What you do NOT do:
+- Modify any file (read-only on the entire repo).
+- Invent issues to look thorough. If clean, say so plainly.
+- Propose architectural redesigns. Stick to gaps against spec/story.
+- Re-do step 3's code-quality review. That's a separate pass with a different lens (design / naming / perf / bloat). Validator is correctness vs promise, not craftsmanship.
+
+Allowed tools: Read, Grep, Glob, Bash (read-only inspection: git diff, git log, test runner without write effects). NO Edit, NO Write.
+
+Output (mandatory):
+
+## Validator Report — Phase X.Y
+
+### Findings (grouped by severity)
+
+#### Critical (blocks merge)
+- {file}:{line} — AC{N} claimed covered but acceptance test failing: ... {fix: ...}
+- {file}:{line} — endpoint /api/foo missing tenant check (multi-tenant rule in user-story.md edge cases): ... {fix: ...}
+
+#### Important (should fix before merge)
+- {file}:{line} — new BullMQ queue added but not in spec; either amend spec or remove
+- {file}:{line} — duplicate validation logic; existing helper at src/lib/validation.ts:42 covers this
+
+#### Minor (reviewer call, opinion-based)
+- {file}:{line} — variable name `x` could be more descriptive
+
+### Coverage Summary
+- ACs total: N
+- ACs with passing acceptance test: N
+- ACs with implementation but no test: N (LIST)
+- ACs with test but no traceable implementation: N (LIST)
+- Code changes without an AC: N files, N lines (LIST — possible scope creep)
+
+### Out-of-scope drift
+- {explicit list of any user-story "Out of Scope" item that appeared in diff, or "none"}
+
+### Folder boundary
+- BE paths touched: {list}
+- FE paths touched: {list}
+- Violations: {list, or "none"}
+
+### Verdict
+- ✅ CLEAN — ready for code-quality review (step 3) and PR (step 8)
+- OR ❌ {N Critical + N Important} — return to {builder(s) / spec amendment / verifier}
+```
+
+### Routing fixes
+
+- Critical → mandatory fix before merge. Goes back to the appropriate builder (BE or FE) or verifier (for test-coverage gaps) or back to spec amendment (for spec-vs-impl gaps where the spec was wrong).
+- Important → defer-vs-fix triage per `defer-vs-fix.md`.
+- Minor → reviewer's call; default is defer to backlog.
+
+### Why validator is read-only
+
+A reviewer who can edit code starts editing. Their findings become invisible (folded into the edit), the diff loses traceability, and the loop muddles. Read-only forces the reviewer to **describe the gap precisely enough for someone else to fix** — which is the only way the report stays useful as an audit artifact and as a teaching signal for the builder.
+
+### Why validator does NOT do code quality
+
+Step 3 (code quality review) covers design / naming / perf / a11y / bloat-smell. Validator covers correctness-vs-promise. Different lenses, different outputs, different anti-patterns. Combining them in one pass produces a sprawling report where critical correctness issues get buried under style nits.
+
+### If validator finds nothing
+
+Say so plainly: "No findings. Coverage 100%. No drift. Ready for step 3." Do NOT invent minor findings to look thorough. A clean run is a real outcome, not a sign the reviewer didn't try.
+
+### Re-run loop
+
+After fix dispatched, re-run validator on the new diff. Iterate until CLEAN.
 
 ## Step 3: Code quality review
+
+> **Parallelize with step 2.** The validator (step 2) and this code-quality pass are
+> both independent read-only passes over the same diff — no data dependency once the
+> builder has returned. Dispatch them concurrently (one message, two `Agent` calls,
+> or `run_in_background` + `Monitor`) to cut wall-clock. Only the builder→reviewers
+> edge is sequential. See `references/harness-primitives.md` §4.
 
 Independent subagent (dispatch via `superpowers:requesting-code-review`, or an equivalent reviewer agent). Lens: **is the implementation well-built?**
 
@@ -35,13 +272,30 @@ Standard concerns: design, naming, error handling, security, a11y (UI), performa
 
 **Plus a third category — forward-looking findings.** A finding that says "this works for the spec, but a downstream task will be hurt by it" (e.g., generated artifact uses an unstable name; consumer task hasn't been written yet but will need a stable name). Reviewer should explicitly call these out.
 
-Output: Strengths / Critical / Important / Minor / Forward-looking / Overall Assessment.
+**Plus a fourth category — bloat / overcomplication smell.** LLM default is over-eager / over-abstracted code. Reviewer MUST run this checklist explicitly (not implicitly inside "design"):
+
+```
+Bloat smell checklist:
+  [ ] Line-count delta vs task complexity sane? (e.g., "add validation" producing 200+ lines = flag)
+  [ ] Any abstraction created for single use? (helper class with one caller, factory for one product, interface with one impl) → flag
+  [ ] Any configurability / flexibility the task did NOT request? (options object, strategy pattern, plugin point) → flag
+  [ ] Any error handling for impossible scenarios? (internal-only callers, framework-guaranteed invariants) → flag
+  [ ] Any features beyond the spec? (logging, metrics, retry, caching the user didn't ask for) → flag
+  [ ] "Would a senior engineer call this overcomplicated?" → if yes, flag
+  [ ] Could this be ~half the lines and still solve the problem? → if yes, flag with the simpler shape sketched
+```
+
+Output: Strengths / Critical / Important / Minor / Forward-looking / **Bloat-smell** / Overall Assessment.
+
+Rationale: Karpathy: "they will implement an inefficient, bloated, brittle construction over 1000 lines of code and it's up to you to be like 'umm couldn't you just do this instead?' and they will be like 'of course!' and immediately cut it down to 100 lines." The reviewer should be the one catching this, not the user.
 
 If issues found, dispatch a fix subagent (typically the same implementer pattern). Re-review until approved.
 
 ## Step 4: Fixup commit
 
 If review found issues, the fixup is a **separate commit** on top of the original. Never amend the original `feat(...)`; never squash the review history away.
+
+**If the fixup is a non-trivial bug** (root cause unclear, reproduces only sometimes, 3+ minutes to understand) → invoke `diagnose-loop.md` before patching. Iron Law: no fix without root cause. Don't substitute "review reviewer said fix X" for a real diagnosis when the bug isn't obvious.
 
 Resulting git log per task:
 
@@ -60,23 +314,49 @@ Separate `docs:` commit. Follows the 6-section schema in `journal-schema.md`. Co
 
 ## Cadence Compression (Mechanical Tasks)
 
-For purely mechanical tasks — single-file regen, schema bump, lockfile update, mechanical refactor that preserves behavior — the default 5-step cadence is overhead.
+For purely mechanical tasks — single-file regen, schema bump, lockfile update, mechanical refactor that preserves behavior — the default 6-step cadence is overhead.
 
-**Compress to 4 steps** (merge spec + code review into one pass) when **all three** conditions hold:
+**Compress to 4 steps** when **all three** conditions hold:
 
 1. The diff is small relative to project norms.
 2. No new logic or control flow is introduced.
 3. No security / compliance / auth surface is touched.
 
-If even one condition fails, run the full 5 steps.
+Compression rules:
+- **Skip step 1.5 (acceptance verifier)** — only applies when `user-story.md` is present; mechanical tasks don't have user-observable behavior changes.
+- **Merge step 2 (validator) + step 3 (code quality)** into one combined reviewer pass.
+- Step 1 stays single-implementer (no BE/FE split on layer-pure mechanical work).
+- Steps 4 (fixup) + 5 (journal) unchanged.
 
-The combined reviewer is dispatched once and asked for both spec compliance and quality assessment in a single output.
+If even one of the three conditions fails, run the full cadence.
+
+## Comprehension Co-Discovery (opt-in, phase-level)
+
+> Anti-cognitive-offloading. Full rationale + the two load-bearing constraints: `comprehension-co-discovery.md`. **Off by default** (`comprehension: off | lite | full` policy key — see `output-format.md`). Scope is this one step; the predict-before-build variant is not part of it.
+
+After the phase's work is validated (step 2) and quality-reviewed (step 3) — the diff is now real, correct, and about to head to the PR checkpoint — **optionally** run **one** comprehension round with the user. This is the highest-offloading-risk moment: "looks done, merge it" without having read the implementation.
+
+- **Once per phase, NOT per task.** Skip entirely on mechanical / compressed-cadence work. Budget: **< 30s total**. If it feels like "sit down and take a quiz," it's mis-designed.
+- The harness reads the real diff, asks **one** *why*-style question that only makes sense if you've read the implementation ("why X instead of Y here?", "what happens if input becomes Z?", "what's the failure mode of this line?"). User answers in their own words. The harness compares the answer **against the diff** and says what's right / what's off / **and why**.
+- **Co-discovery, not a quiz.** Framing is "interesting — you expected X, it actually does Y" (curiosity), never "you got this wrong / you don't understand X" (judgment). The harness can be wrong too — it's comparing notes against ground truth, not grading.
+- **Non-blocking.** A weak answer does NOT block the PR. Optionally leaves a `[COMPREHENSION-GAP]` note in the journal Findings and moves on. **No cumulative score / scoreboard** — immediate per-round feedback only, then the round is discarded. Next phase = a fresh round.
+
+Why here: this is the repo's own `verify-loop.md` ("give the LLM a way to check its own work, or it self-grades and lies") **turned on the human**, and structurally the validator's lie-detection (cross-reference a claim against the diff) applied to the user's *claimed understanding* instead of a builder's claimed work. Reversible behavior — **NOT an ADR** (fails the `adr.md` hard-to-reverse criterion).
 
 ## Controller Anti-Patterns
 
 - Letting the implementer read the plan file directly — wastes context, lets implementer skip the controller-added "adapt" guidance.
 - Dispatching multiple implementers in parallel against the same files — they'll conflict.
 - Merging review feedback into the implementer's prompt instead of running a separate fix dispatch — loses the review trail.
-- Skipping spec compliance review because "the code looks right" — different bug class.
-- Skipping code quality review because spec compliance passed — different bug class.
+- Skipping the acceptance verifier (step 1.5) on a user-observable phase because "the unit tests pass" — different concern; unit tests verify the implementation's internals, acceptance tests verify the user-story ACs. Both required.
+- Skipping the validator (step 2) because "code-quality review will catch it" — different lens. Validator covers correctness-vs-promise (AC coverage, scope drift, security gaps relative to spec). Code-quality covers craftsmanship (design, naming, bloat). Combining them buries critical findings under nits.
+- Skipping code quality review (step 3) because validator passed — different bug class.
 - Marking task complete with open Important findings unaddressed — apply defer-vs-fix triage instead.
+- **Dispatching implementer without enforcing the pre-flight assumption block** — controller loses the chance to catch wrong assumptions before code is written; first surface of the assumption becomes the diff, by which point sunk-cost bias makes correction expensive.
+- **Letting implementer skip the surgical-scope clause** — silent drive-by edits (reformatting / "improved" comments / dead-code purge orthogonal to task) pollute the diff and break review traceability. Every changed line must trace to the task text.
+- **Code reviewer skips the bloat-smell checklist because "design looks clean"** — clean design ≠ minimum design. Bloat smell is its own pass; run it explicitly.
+- **Cross-layer phase dispatched as a single implementer** — atomic-commit invariant breaks; reviewers can't isolate BE vs FE concerns; FE+BE conflate into one diff. Split per `builder-split.md`.
+- **Frontend builder dispatched before backend builder summary exists** — FE invents endpoints; mismatch surfaces in smoke or production. Sequence: BE → BE summary → FE reads summary → FE builds.
+- **Validator given Edit/Write permissions** — reviewer who can edit, edits. Findings vanish into the edit, audit trail dies. Validator is read-only on `src/` always.
+- **Acceptance verifier writing tests against internal functions** — that's a unit test, not an acceptance test. Verifier exercises the system from outside (HTTP / UI / observable side-effect only).
+- **Acceptance verifier marking an AC "covered" without a passing test** — coverage means a green test, not "I checked the code and it looks right." If untestable, mark UNTESTABLE with reason.

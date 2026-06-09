@@ -45,6 +45,59 @@ Even where cost is not the binding constraint, **every token should earn its pla
 - **`/clear` at natural breaks** — phase boundary, task boundary, when context >50% and starting fresh work. The handoff doc + RESUME.md + mid-phase resume note make `/clear` safe.
 - **Hot-path artifacts before /clear**: confirm handoff doc / journal / resume note are written so the next session has a tight entry point.
 
+### Skill invocation triage
+
+Before invoking `project-lifecycle` (or any heavyweight workflow skill), apply triage:
+
+| Task | Invoke project-lifecycle? | Action |
+|---|---|---|
+| Fresh project setup | YES | Full workflow |
+| New milestone | YES | Full workflow |
+| Multi-task feature with dependencies | YES | Full workflow |
+| Decision needing online research | YES | At least brainstorm + research gate |
+| One-off bug fix (small diff) | NO | Inline fix, single commit |
+| Single-file polish | NO | Inline edit |
+| Typo / docs tweak | NO | Inline edit |
+| Single config knob change | NO | Inline edit |
+| Refactor of one function | NO | Inline + journal one-liner |
+| Test for one new function | NO | TDD inline |
+
+The full workflow (brainstorm → plan → 6-step cadence → handoff → PR) is **100-300K tokens per phase**. Trivial work doesn't earn that overhead. Triage saves the majority of token waste from skill misuse.
+
+### Workflow compression (when workflow IS invoked)
+
+- **Cadence compression** — for tasks with small diff + no new logic + no security/compliance surface, merge spec + code review into one pass. Saves ~15-30K tokens per task.
+- **Brainstorm Mode B for ≥3 questions** — Mode A dispatches research subagents per Q (2-4 agents/Q). Mode B shares overhead. Multi-Q phases save 50-100K tokens.
+- **Single-tier research for BE-only / data-shape questions** — skip Tier 2 novice agent when the question doesn't have a UX dimension. Floor is still ≥2 reference products / sources.
+- **Skip blind 2nd-agent only when explicitly safe** — `references/brainstorm-research-protocol.md` requires the blind step on locked decisions. Don't compress it to save tokens; the cost of confirmation bias is worse than the dispatch cost.
+
+### Investigation: subagent vs main context
+
+Big lookups burn main context. Heuristic:
+
+| Investigation scope | Where to do it |
+|---|---|
+| Single grep / one file Read | Main context, direct tool |
+| 2-3 quick lookups for a known answer | Main context, parallel tools |
+| "Where is X defined / what calls Y / map this directory" | `Explore` subagent — returns synthesis, cheaper than 5 sequential greps |
+| "Audit this entire dir / find all uses of Z across repo" | `general-purpose` subagent |
+| Deep multi-step research with web | a deep-research subagent (e.g. PLC's `/research`) |
+| Cross-file consistency / open-ended analysis | `general-purpose` with explicit synthesis instruction |
+
+Main context bloat hurts every subsequent turn until `/clear`. Subagent results land as a compact summary that the main context absorbs cheaply.
+
+### Model selection per subagent
+
+| Model | Best for | Cost relative |
+|---|---|---|
+| **Haiku 4.5** | High-frequency lightweight: trivial implementer, journal entry generator, brainstorm Tier 2 research, simple linter-fix dispatch | 1x |
+| **Sonnet 4.6** | General coding: typical implementer, spec reviewer, code reviewer, brainstorm Tier 1 research, plan generator | ~3x Haiku |
+| **Opus 4.7** | Orchestrator / controller context, architectural decisions, deep verification, blind 2nd-agent on critical decisions | ~10x Haiku |
+
+Default subagent dispatches in `superpowers:*` inherit the orchestrator's model unless overridden. **Explicitly specify model when dispatching** to avoid burning Opus tokens on a typo-fix subagent.
+
+Example: `Agent(subagent_type=Explore, model=haiku, …)` for cheap lookups.
+
 ## Adopt-on-tool list (when these tools are installed)
 
 | Tool | What changes |

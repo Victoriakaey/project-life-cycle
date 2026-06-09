@@ -1,0 +1,15 @@
+{
+  "phase_docs_glob": "docs/superpowers/specs/*-phase-{PHASE}-*",
+  "plan_glob": "docs/superpowers/plans/*-phase-{PHASE}-*",
+  "journal": "docs/iteration-journal.md",
+  "handoff_glob": "docs/handoff/*-phase-{PHASE}-handoff.md",
+  "smoke_a_glob": "docs/smoke/*-phase-{PHASE}-*checklist*",
+  "smoke_b_glob": "tests/e2e/**/*phase-{PHASE}*",
+  "acceptance_glob": "tests/acceptance/**/*phase-{PHASE}*",
+  "test_evidence": ".claude/.last-test-run",
+  "test_command": "REPLACE_ME e.g. 'bun test' or '.venv/bin/python -m pytest -q'",
+  "test_runs_required": 1,
+  "user_visible": true,
+  "exempt_user_story": false,
+  "exempt_changelog": false
+}

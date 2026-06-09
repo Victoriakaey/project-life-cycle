@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      # Accept both `claude plugin tag` style (project-lifecycle--v1.2.3)
+      # and plain semver (v1.2.3) so manual + tool-driven releases work.
+      - "project-lifecycle--v*.*.*"
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#project-lifecycle--}"
+          VERSION="${VERSION#v}"
+          echo "tag=${TAG}"         >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Tag: ${TAG} -> Version: ${VERSION}"
+
+      - name: Extract CHANGELOG section for this version
+        id: changelog
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          {
+            echo "## ${{ steps.version.outputs.tag }}"
+            echo ""
+            if grep -q "^## \[${VERSION}\]" CHANGELOG.md 2>/dev/null; then
+              awk -v ver="${VERSION}" '
+                $0 ~ "^## \\[" ver "\\]" { in_section=1; print; next }
+                in_section && /^## / { exit }
+                in_section { print }
+              ' CHANGELOG.md
+              echo ""
+              echo "---"
+              echo "Full history: see [\`CHANGELOG.md\`](./CHANGELOG.md)"
+            else
+              echo "_No CHANGELOG section for \`${VERSION}\`; falling back to commit log:_"
+              echo ""
+              PREV_TAG=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+              if [ -z "${PREV_TAG}" ]; then
+                git log --pretty=format:"- %s" "${GITHUB_REF_NAME}"
+              else
+                git log --pretty=format:"- %s" "${PREV_TAG}..${GITHUB_REF_NAME}"
+              fi
+              echo ""
+            fi
+          } > release-notes.md
+          echo "--- release-notes.md ---"
+          cat release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.version.outputs.tag }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true # appends GitHub auto-notes (PR-label grouped per .github/release.yml) after body_path

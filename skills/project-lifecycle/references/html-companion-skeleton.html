@@ -1,0 +1,352 @@
+<!--
+  HTML companion skeleton for project-lifecycle brainstorm/spec/design exploration.
+  Copy this file into a project at:
+    docs/superpowers/specs/YYYY-MM-DD-<phase>-design.html
+  Fill in every <!-- TODO --> block. Keep the section structure unless
+  references/html-companion-template.md § "When to deviate" applies.
+
+  MD remains canonical. This HTML is a generated companion view.
+
+  Localization: body text may be translated to the operator's preferred non-
+  English language. Keep technical jargon (acronyms, code identifiers,
+  regulation names) verbatim. Add the CJK font fallback to font-family if
+  the body is CJK. This skeleton itself stays English; only project copies
+  get localized.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><!-- TODO: Phase title · Design Exploration --></title>
+<style>
+  :root {
+    --bg: #fafaf9; --surface: #ffffff; --ink: #18181b; --muted: #71717a;
+    --line: #e4e4e7; --accent: #4f46e5; --accent-soft: #eef2ff;
+    --green: #16a34a; --green-soft: #ecfdf5;
+    --amber: #d97706; --amber-soft: #fef3c7;
+    --red: #dc2626; --red-soft: #fee2e2;
+    --teal: #0d9488; --teal-soft: #f0fdfa;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.06);
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; line-height: 1.65; color: var(--ink); background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+    /*
+      For CJK projects, prepend the CJK fallbacks:
+      font-family: -apple-system, BlinkMacSystemFont,
+                   "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+                   "Inter", system-ui, sans-serif;
+    */
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+  h1 { font-size: 2.2rem; margin: 0 0 .25rem; letter-spacing: -.02em; }
+  h2 { font-size: 1.5rem; margin: 3rem 0 1rem; border-top: 1px solid var(--line); padding-top: 1.5rem; }
+  h3 { font-size: 1.15rem; margin: 1.5rem 0 .6rem; }
+  h4 { font-size: 1rem; margin: 1rem 0 .4rem; }
+  .subtitle { color: var(--muted); margin: 0 0 2rem; font-size: 1.02rem; }
+  .pill {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .2rem .65rem; border-radius: 999px; font-size: .78rem; font-weight: 600;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid #c7d2fe;
+  }
+  .badge {
+    display: inline-block; padding: .12rem .55rem; border-radius: 6px;
+    font-size: .72rem; font-weight: 700; letter-spacing: .02em;
+  }
+  .badge.green { background: var(--green-soft); color: var(--green); border: 1px solid #86efac; }
+  .badge.amber { background: var(--amber-soft); color: var(--amber); border: 1px solid #fcd34d; }
+  .badge.red   { background: var(--red-soft);   color: var(--red);   border: 1px solid #fca5a5; }
+  .badge.teal  { background: var(--teal-soft);  color: var(--teal);  border: 1px solid #5eead4; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 1.4rem 1.6rem; box-shadow: var(--shadow); margin: 1rem 0;
+  }
+  .quote {
+    border-left: 3px solid var(--accent); padding: .55rem 1rem; margin: .8rem 0;
+    background: var(--accent-soft); border-radius: 0 6px 6px 0; color: #312e81;
+    font-style: italic; font-size: .95rem;
+  }
+  .quote .src { display: block; margin-top: .3rem; font-style: normal; color: var(--muted); font-size: .8rem; }
+  .why-box {
+    background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px;
+    padding: .8rem 1rem; margin: .8rem 0;
+  }
+  .why-box .why-label {
+    font-size: .72rem; font-weight: 700; letter-spacing: .08em; color: var(--amber);
+    text-transform: uppercase; display: inline-block; margin-bottom: .25rem;
+  }
+  .compare-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; margin: 1rem 0; }
+  .compare-3 .col { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.1rem; font-size: .85rem; }
+  .compare-3 .col h4 { margin: 0 0 .45rem; display: flex; justify-content: space-between; align-items: center; }
+  .compare-3 .col .label-row { color: var(--accent); font-weight: 700; font-size: .75rem; text-transform: uppercase; margin-top: .65rem; }
+  .legend { display: flex; gap: 1.2rem; flex-wrap: wrap; margin: .5rem 0 1.5rem; font-size: .85rem; color: var(--muted); }
+  .mock { background: #fefefe; border: 1px solid var(--line); border-radius: var(--radius); padding: 1.3rem 1.6rem; margin: 1rem 0; }
+  .mock-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: .75rem; border-bottom: 1px solid var(--line); }
+  .field { display: grid; grid-template-columns: 160px 1fr; gap: 1rem; padding: .55rem 0; border-bottom: 1px dashed var(--line); align-items: start; }
+  .field-label { color: var(--muted); font-size: .82rem; font-weight: 500; }
+  .field-input { background: #f9f9fb; padding: .45rem .7rem; border-radius: 5px; border: 1px solid var(--line); font-size: .9rem; }
+  .field-input.prefilled { background: #fffbeb; border-color: #fcd34d; }
+  .field-input.placeholder { color: #a1a1aa; font-style: italic; }
+  .field-input.error { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+  .ai-hint { margin-top: .35rem; font-size: .78rem; color: var(--accent); display: flex; align-items: center; gap: .3rem; }
+  .ai-hint::before { content: "✨"; }
+  .pill-row { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .25rem; }
+  .chip { font-size: .78rem; padding: .18rem .55rem; border-radius: 4px; background: #f4f4f5; border: 1px solid var(--line); color: var(--ink); }
+  .chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .audit-checklist { display: grid; gap: .4rem; margin: .8rem 0; }
+  .audit-row { display: grid; grid-template-columns: 24px 1fr auto; gap: .6rem; align-items: center; padding: .35rem .5rem; border-radius: 5px; }
+  .audit-row.ok { background: #f0fdf4; }
+  .audit-row.fail { background: #fee2e2; }
+  .audit-row .mark.ok { color: var(--green); font-size: 1.05rem; }
+  .audit-row .mark.fail { color: var(--red); font-size: 1.05rem; }
+  .audit-row .note { font-size: .78rem; color: var(--muted); }
+  .disagree { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .disagree .opt { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.15rem; display: grid; gap: .35rem; }
+  .disagree .opt header { display: flex; justify-content: space-between; align-items: center; font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .disagree .opt.rec { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+  .disagree .opt.rec header { color: var(--green); font-weight: 700; }
+  .disagree .opt .scenario { font-size: .82rem; color: var(--muted); padding: .55rem .6rem; background: #f9f9fb; border-radius: 5px; margin-top: .4rem; }
+  .timeline-phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; margin: 1rem 0; }
+  .timeline-phases .step { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
+  .timeline-phases .step .num { font-size: .72rem; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+  .timeline-phases .step h5 { margin: .3rem 0 .35rem; font-size: 1rem; }
+  .timeline-phases .step p { margin: 0; font-size: .85rem; color: var(--muted); }
+  .timeline-phases .step.future { opacity: .55; }
+  .dataflow { display: grid; grid-template-columns: 1fr 60px 1fr; gap: 1rem; margin: 1rem 0; font-size: .9rem; }
+  .dataflow .stage { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: .9rem 1.1rem; }
+  .arrow { text-align: center; align-self: center; color: var(--muted); font-size: 1.6rem; }
+  .glossary { display: grid; gap: .75rem; }
+  .glossary .gloss-row { display: grid; grid-template-columns: 200px 1fr; gap: 1rem; padding: .6rem .8rem; background: var(--surface); border-radius: 6px; border: 1px solid var(--line); align-items: start; }
+  .glossary .gloss-row .term { font-weight: 700; color: var(--accent); }
+  .glossary .gloss-row .def { font-size: .92rem; }
+  table.locks { width: 100%; border-collapse: collapse; margin-top: .5rem; font-size: .9rem; }
+  table.locks th, table.locks td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.locks th { background: #f4f4f5; font-weight: 600; font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  table.locks td:first-child { font-weight: 600; width: 4rem; color: var(--accent); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .cite-list { font-size: .87rem; line-height: 1.85; }
+  details summary { cursor: pointer; font-weight: 600; padding: .5rem 0; }
+  .footer { color: var(--muted); font-size: .82rem; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+  .footer code { font-size: .8rem; background: #f4f4f5; padding: .15rem .35rem; border-radius: 3px; }
+  @media (max-width: 720px) {
+    .compare-3, .disagree, .timeline-phases { grid-template-columns: 1fr; }
+    .dataflow { grid-template-columns: 1fr; }
+    .field, .audit-row, .glossary .gloss-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="pill">DRAFT · <!-- TODO: Phase X.Y · YYYY-MM-DD --></span>
+  <h1><!-- TODO: Phase name --></h1>
+  <p class="subtitle">
+    <!-- TODO: 1-2 sentences framing the customer pain and the solution direction. Audience: stakeholder, not engineer. -->
+  </p>
+</header>
+
+<!-- §0 Customer voice (verbatim) — MANDATORY -->
+<h2>§ 0 · Customer voice (verbatim)</h2>
+<p><!-- TODO: 1 sentence framing the verbatim quotes below. --></p>
+<div class="card">
+  <h3><!-- TODO: Pain point 1 label --></h3>
+  <div class="quote">
+    "<!-- TODO: verbatim quote, original language -->"
+    <span class="src">— <!-- TODO: source + date --></span>
+  </div>
+  <!-- TODO: add more quotes as needed -->
+</div>
+
+<!-- §1 Stakeholder lens / gatekeeper view — MANDATORY -->
+<h2>§ 1 · <!-- TODO: e.g. Auditor view / Reviewer checklist / Customer's first interaction --></h2>
+<p><!-- TODO: who the gatekeeper is + why their view matters --></p>
+<div class="card">
+  <h3><!-- TODO: scenario name --></h3>
+  <div class="audit-checklist">
+    <div class="audit-row ok"><span class="mark ok">✓</span><div><strong><!-- TODO: requirement 1 --></strong></div><div class="note"><!-- TODO: example fill --></div></div>
+    <!-- TODO: add more rows -->
+  </div>
+  <div class="why-box">
+    <span class="why-label">So what?</span>
+    <strong><!-- TODO: link this back to the product decision --></strong>
+  </div>
+</div>
+
+<!-- §2 Side-by-side option comparison — MANDATORY -->
+<h2>§ 2 · <!-- TODO: e.g. Format comparison / Plan comparison --></h2>
+<p><!-- TODO: framing --></p>
+<div class="compare-3">
+  <div class="col">
+    <h4><!-- TODO: option 1 name --> <span class="badge teal"><!-- TODO: tag --></span></h4>
+    <p style="color: var(--muted); font-size: .78rem;"><!-- TODO: 1-line description --></p>
+    <div class="label-row"><!-- TODO: sub-section 1 --></div>
+    <p><!-- TODO: rendered example content --></p>
+  </div>
+  <div class="col">
+    <h4><!-- TODO: option 2 --> <span class="badge teal"></span></h4>
+    <p><!-- TODO --></p>
+  </div>
+  <div class="col">
+    <h4><!-- TODO: option 3 --> <span class="badge teal"></span></h4>
+    <p><!-- TODO --></p>
+  </div>
+</div>
+<div class="why-box">
+  <span class="why-label">So what?</span>
+  <strong><!-- TODO: which option this leads to and why --></strong>
+  Refs: <a href="<!-- TODO -->"><!-- TODO --></a>
+</div>
+
+<!-- §3 to §M Mechanic explanations — repeat per non-trivial rule -->
+
+<!-- §M+1 Form/UI mockup — MANDATORY for spec/design HTML -->
+<h2>§ M+1 · Form mockup</h2>
+<div class="mock">
+  <div class="mock-header">
+    <div>
+      <h4><!-- TODO: form title --></h4>
+      <small style="color: var(--muted);"><!-- TODO: context line --></small>
+    </div>
+    <div><span class="badge amber">DRAFT</span></div>
+  </div>
+  <div class="field">
+    <span class="field-label"><!-- TODO: label --></span>
+    <div>
+      <div class="field-input prefilled"><!-- TODO: pre-filled value --></div>
+      <div class="ai-hint"><!-- TODO: provenance --></div>
+    </div>
+  </div>
+  <div class="field">
+    <span class="field-label"><!-- TODO --></span>
+    <div><div class="field-input placeholder"><!-- TODO: empty placeholder --></div></div>
+  </div>
+  <!-- TODO: add more fields -->
+</div>
+
+<!-- §M+2 State machine — MANDATORY when phase introduces state transitions -->
+<h2>§ M+2 · State machine</h2>
+<div class="dataflow">
+  <div class="stage">
+    <h5>📝 STATE A</h5>
+    <ul>
+      <li><!-- TODO: what this state means --></li>
+      <li><!-- TODO: what the user can do --></li>
+      <li><!-- TODO: what audit row is written --></li>
+    </ul>
+  </div>
+  <div class="arrow">→ event →</div>
+  <div class="stage" style="border-color: var(--green); background: var(--green-soft);">
+    <h5>🔒 STATE B</h5>
+    <ul>
+      <li><!-- TODO: what changed --></li>
+    </ul>
+  </div>
+</div>
+
+<!-- §M+3 Decisions + disagreements — MANDATORY -->
+<h2>§ M+3 · Locked decisions + pending</h2>
+<div class="legend">
+  <span><span class="badge green">🟢 strong</span> ≥3 refs agree</span>
+  <span><span class="badge amber">🟡 mixed</span> partial evidence</span>
+  <span><span class="badge red">🔴 inference</span> needs review</span>
+</div>
+<h3>✅ Locked</h3>
+<table class="locks">
+  <thead><tr><th>Q</th><th>Decision</th><th>Strength</th></tr></thead>
+  <tbody>
+    <tr><td>Q1</td><td><!-- TODO --></td><td><span class="badge green">🟢</span></td></tr>
+    <!-- TODO: more rows -->
+  </tbody>
+</table>
+<h3>⚠ Disagreements (operator picks)</h3>
+<h4>D1 · <!-- TODO: question name --></h4>
+<div class="disagree">
+  <div class="opt rec">
+    <header><span><!-- TODO: pick label --></span><span class="badge green">🟢</span></header>
+    <strong><!-- TODO: option A title --></strong>
+    <p><!-- TODO: option A description --></p>
+    <div class="scenario">📅 Real-world scenario: <!-- TODO: concrete situation --></div>
+    <small style="color: var(--green);">✅ Recommended — <!-- TODO: 1-line reason --></small>
+  </div>
+  <div class="opt">
+    <header><span><!-- TODO --></span><span class="badge amber">🟡</span></header>
+    <strong><!-- TODO --></strong>
+    <p><!-- TODO --></p>
+    <div class="scenario">📅 Real-world scenario: <!-- TODO --></div>
+  </div>
+</div>
+
+<!-- §M+4 Phase timeline — MANDATORY -->
+<h2>§ M+4 · Phase timeline</h2>
+<div class="timeline-phases">
+  <div class="step">
+    <span class="num"><!-- TODO: e.g. Phase X.0 · current --></span>
+    <h5><!-- TODO: phase name --></h5>
+    <p><!-- TODO: 1-2 sentence summary --></p>
+  </div>
+  <div class="step future">
+    <span class="num"><!-- TODO --></span>
+    <h5><!-- TODO --></h5>
+    <p><!-- TODO --></p>
+  </div>
+  <!-- TODO: more steps -->
+</div>
+
+<!-- §M+5 Cross-phase carryover — MANDATORY when prior phases exist -->
+<h2>§ M+5 · Cross-phase carryover</h2>
+<div class="card">
+  <ul style="margin: 0; padding-left: 1.15rem;">
+    <li><strong><!-- TODO: what's reused --></strong> · <!-- TODO: details --></li>
+    <li><strong><!-- TODO: F-finding carry-over --></strong> · <!-- TODO --></li>
+  </ul>
+</div>
+
+<!-- §M+6 Operator next steps — MANDATORY -->
+<h2>§ M+6 · Next steps</h2>
+<div class="card">
+  <ol style="margin: 0; padding-left: 1.15rem;">
+    <li><!-- TODO: action 1 --></li>
+    <li><!-- TODO: action 2 --></li>
+  </ol>
+</div>
+
+<!-- §M+7 Glossary — MANDATORY -->
+<h2>§ M+7 · Glossary</h2>
+<div class="glossary">
+  <div class="gloss-row">
+    <span class="term"><!-- TODO: term --></span>
+    <span class="def"><!-- TODO: zero-domain-knowledge definition --></span>
+  </div>
+  <!-- TODO: add more terms -->
+</div>
+
+<!-- §M+8 Citations index — MANDATORY -->
+<h2>§ M+8 · Citations</h2>
+<details open>
+  <summary><!-- TODO: category 1 --></summary>
+  <ul class="cite-list">
+    <li><a href="<!-- TODO -->"><!-- TODO --></a></li>
+    <!-- TODO: more sources -->
+  </ul>
+</details>
+<details>
+  <summary><!-- TODO: category 2 --></summary>
+  <ul class="cite-list">
+    <li><a href="<!-- TODO -->"><!-- TODO --></a></li>
+  </ul>
+</details>
+
+<div class="footer">
+  Markdown source:
+  <a href="<!-- TODO: relative path -->"><code><!-- TODO --></code></a>
+  · Generated <!-- TODO: date --> by the <code>project-lifecycle</code> skill. MD is source of truth.
+</div>
+
+</div>
+</body>
+</html>

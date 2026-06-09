@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# TEMPLATE — copy to a project as .claude/hooks/inject-resume.sh and wire it into
+# the project's .claude/settings.json under SessionStart matcher "resume" (see
+# references/harness-primitives.md §2). NOT a skill-frontmatter hook: at session
+# start the skill is not yet active, so this must live in project settings.
+#
+# On resume, injects the current phase branch + the head of RESUME.md as
+# additionalContext, so the model re-grounds in the phase without being told to
+# read RESUME. Always exits 0.
+set -uo pipefail
+cat >/dev/null 2>&1 || true   # drain the SessionStart event JSON
+
+BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')"
+RESUME_HEAD=""
+if [ -f RESUME.md ]; then
+  RESUME_HEAD="$(head -c 1500 RESUME.md 2>/dev/null || true)"
+fi
+[ -z "$RESUME_HEAD" ] && exit 0   # no RESUME.md → nothing to inject
+
+CTX="[project-lifecycle resume] Current branch: ${BRANCH}. RESUME.md head follows — re-ground in the current phase before acting:
+${RESUME_HEAD}"
+
+python3 - "$CTX" <<'PY'
+import json, sys
+print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": sys.argv[1]}}))
+PY
+exit 0

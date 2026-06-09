@@ -1,0 +1,66 @@
+# GitHub auto-generated release notes config
+# https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
+#
+# When a release is cut from a tag, GitHub uses this file to group merged
+# PRs by label into the release-notes body. Each PR should carry exactly
+# ONE category label from the lists below (CONTRIBUTING.md documents the
+# label taxonomy + which Keep-a-Changelog category each PR label maps to).
+#
+# An uncategorized PR lands in the catch-all `Other Changes` section —
+# that is a signal to add the right label to the PR before re-cutting
+# the release.
+
+changelog:
+  exclude:
+    labels:
+      - skip-release-notes
+      - sync          # routine live→repo sync commits, not user-visible
+      - chore-quiet   # internal chore not worth surfacing
+    authors:
+      - dependabot
+      - github-actions[bot]
+
+  categories:
+
+    - title: ⚠️ Breaking Changes
+      labels:
+        - breaking
+
+    - title: ✨ New Features & References
+      labels:
+        - feature
+        - new-reference
+        - new-command
+
+    - title: 🛠 Workflow & Cadence Changes
+      labels:
+        - cadence
+        - workflow
+        - convention
+
+    - title: 🐛 Bug Fixes
+      labels:
+        - bug
+        - fix
+
+    - title: 📝 Documentation
+      labels:
+        - docs
+
+    - title: 🤖 CI / Tooling
+      labels:
+        - ci
+        - tooling
+        - sync-script
+
+    - title: ⬆️ Dependencies
+      labels:
+        - dependencies
+
+    - title: 🧹 Chores
+      labels:
+        - chore
+
+    - title: 🪪 Other Changes
+      labels:
+        - "*"
