@@ -13,6 +13,7 @@ Controller (the orchestrating agent) prepares each implementer prompt:
 - **Full task text** from the plan (don't make the subagent read the plan file).
 - **Acceptance Criteria this task closes** — explicit AC IDs from `user-story.md` (e.g., "this task closes AC3, AC4"). Builder pre-flight block MUST restate which ACs it's targeting.
 - **Scene-setting context** — what previous tasks built that this one depends on. For frontend builder, this includes the Backend Summary verbatim (see `builder-split.md`).
+- **Contingencies injection** — if `user-story.md` declares a Contingencies section, paste it verbatim into the builder prompt. The builder consults it before escalating: a situation matching a declared contingency follows the pre-decided action (and notes which one fired in the Builder Summary); only undeclared surprises go through BLOCKED / NEEDS_CONTEXT. Saves a full controller round-trip per foreseeable failure path.
 - **Folder-scope clause (mandatory on split phases)** — explicit allowed write paths from `CLAUDE.md` `folder-map`; explicit forbidden paths. Controller rejects any diff touching forbidden paths.
 - **Adapt-to-existing-patterns guidance** — when the plan was written before the codebase matured, the live code may have established conventions (typed wrappers, helper objects, naming) that the plan snippet doesn't reflect. The controller MUST tell the implementer to use the live conventions, not blindly copy the plan.
 - **First-of-its-kind detection** — if this task is the first to introduce a new tooling category (test runner, language toolchain, container runtime, contract format, etc.), the controller MUST either insert a bootstrap step or list the missing infra in the prompt.
@@ -131,6 +132,8 @@ Acceptance verifier commits as `test(acceptance): phase X.Y AC1-N coverage` — 
 ## Step 2: Spec + AC compliance review (Validator)
 
 Independent subagent. **Strictly read-only on source.** Lens: **does the implementation satisfy the user story and spec, with no scope drift in either direction?**
+
+> **Reviewer dispatch constraints apply** (`references/review-record.md`): fresh context (never the writer's session), read-only tools, explicit model tier (prefer ≥ implementer's), refute-first output order with the verdict field LAST, every finding cites `file:line` + quoted snippet (unquotable findings are discarded), and the pass/fail verdict is computed by the controller from per-criterion fields + open-severity counts — never taken from a reviewer-stated "approved". Pre-seeded suspicions are allowed only AFTER the prompt requires one unanchored full-diff pass.
 
 ### Dispatch contract
 
@@ -266,7 +269,7 @@ After fix dispatched, re-run validator on the new diff. Iterate until CLEAN.
 > or `run_in_background` + `Monitor`) to cut wall-clock. Only the builder→reviewers
 > edge is sequential. See `references/harness-primitives.md` §4.
 
-Independent subagent (dispatch via `superpowers:requesting-code-review`, or an equivalent reviewer agent). Lens: **is the implementation well-built?**
+Independent subagent (dispatch via `superpowers:requesting-code-review`, or an equivalent reviewer agent). Lens: **is the implementation well-built?** The same reviewer dispatch constraints as step 2 apply (`references/review-record.md`) — and steps 2/3 are intentionally **different lenses, not clones**: distinct prompts (ideally distinct tiers) is what makes a multi-reviewer pass worth more than one reviewer voting twice.
 
 Standard concerns: design, naming, error handling, security, a11y (UI), performance, test quality.
 
@@ -295,6 +298,13 @@ If issues found, dispatch a fix subagent (typically the same implementer pattern
 
 If review found issues, the fixup is a **separate commit** on top of the original. Never amend the original `feat(...)`; never squash the review history away.
 
+**Between finding and fix, four rules** (full rationale + live incidents in `references/review-record.md`):
+
+1. **Routing split** — mechanically verifiable findings (a RED test / deterministic check can prove them) → fix; judgment calls (design taste, semantics tie-breaks) → report-only, routed to the human via the PR's "Reviewer asks". Guard against "the reviewer was wrong and the code drifted to match it".
+2. **One review-fix = one commit**, referencing the finding — wrong premise = revert exactly one. This is a commit-time checklist item, not an intention (it was stated and then violated on its first live track).
+3. **The reviewer's suggested fix code is untrusted input.** Adopt the finding; derive the fix yourself from the surrounding code and ship it with a test. A pasted reviewer snippet has already caused a real silent-data-loss bug.
+4. **Review-fixes are unreviewed code** — after fixes (and any other post-review commits), a fresh **final-pass reviewer** covers everything earlier rounds did not see, before the task/PR closes.
+
 **If the fixup is a non-trivial bug** (root cause unclear, reproduces only sometimes, 3+ minutes to understand) → invoke `diagnose-loop.md` before patching. Iron Law: no fix without root cause. Don't substitute "review reviewer said fix X" for a real diagnosis when the bug isn't obvious.
 
 Resulting git log per task:
@@ -308,9 +318,34 @@ docs(...): journal entry
 
 This makes review feedback traceable in `git log` and preserves the original work as a reviewable artifact.
 
+### Selective re-verification after fixup (task level ONLY)
+
+Re-running the whole verification chain after every fixup burns tokens proportional to ceremony, not to what changed. At task level, scope the re-verification to what the fixup diff actually touched:
+
+- Map the fixup diff to scopes: folder-map sides (BE / FE) + the AC IDs the changed lines trace to.
+- **Acceptance verifier** → re-run only the acceptance tests for affected ACs.
+- **Validator** → re-check only its own raised findings + the fixup commit's diff (not the full original diff again).
+- **Unaffected-scope suites** (e.g. BE unit/integration when the fixup is FE-only) may be skipped at task level; the task-done test-evidence may be scoped accordingly.
+
+**Two hard boundaries:**
+
+1. **The phase-level gate stays full.** `phase-done` still requires complete fresh full-suite test-evidence (incl. `RUNS=N`) before the PR. That full run is the safety net — it is exactly what catches a regression that task-level selectivity skipped. This subsection changes nothing in `close-gate.md` phase mode.
+2. **Falsification rule.** If the phase gate catches a regression that a skipped task-level re-run would have caught, log it in the journal ("Plan deviations") and stop using selectivity for the remainder of the phase — the rule is falsified for this codebase until re-examined.
+
+Adoption note: on a project currently mid-phase, this takes effect from the next phase boundary — never change a running phase's exit criteria.
+
 ## Step 5: Journal entry
 
 Separate `docs:` commit. Follows the 6-section schema in `journal-schema.md`. Covers the **whole task** (all of its commits), not each commit individually.
+
+### Approval timing — the `close-gate` policy key
+
+Projects that adopt a human-blocking close approval (a CLAUDE.md rule that the Task Close Report awaits the user's "ok" before commit) control WHERE that approval sits via `close-gate: per-task | pr-boundary` in CLAUDE.md:
+
+- `per-task` (default) — block here, at every task close, on the user's "ok".
+- `pr-boundary` — an independent **read-only** reviewer subagent does the per-task read; the Task Close Report is still written every task (audit trail) but does not block; the human's blocking approval moves to once per PR/merge, which must carry a **human-written approval marker the AI cannot author**.
+
+The deterministic `make task-done` gate runs identically in both modes — the key never relaxes it. Full mechanics, the self-certification attack surface, and the experiment protocol (catch parity + comprehension drift over 2-3 tracks, rollback = flip the key): `close-gate.md` §"Approval timing".
 
 ## Cadence Compression (Mechanical Tasks)
 

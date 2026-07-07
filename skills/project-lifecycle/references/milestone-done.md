@@ -15,13 +15,14 @@ A milestone is "done" only when all of the following are true. Anything else is 
 - [ ] **CI pipeline complete** — format / lint / type / tests / coverage floor / schema drift / handoff-doc-presence all green (see `ci-cd-gates.md` Layer 2).
 - [ ] **Branch protection enforced** on `main` (no direct push, no force push, CI required — see `ci-cd-gates.md` Layer 3).
 - [ ] **Phase handoff doc exists** at `docs/handoff/YYYY-MM-DD-phase-X.Y-handoff.md` and follows the 8-section structure in `references/handoff-template.md`.
-- [ ] **PR description opens with a plain-language TL;DR** (3-5 sentences, zero jargon, as 3 bullet points: Problem / What we did / Result + honest boundary), then copies handoff §1 + §4 summary + §7 (template in handoff appendix).
+- [ ] **PR description opens with a plain-language TL;DR** (4-6 sentences, zero jargon, as 4 bullet points: Problem / What we did / Why we did it / Result + honest boundary), then copies handoff §1 + §4 summary + §7 (template in handoff appendix).
 - [ ] PR opened, CI green, merged to main.
 - [ ] If the milestone introduced user-visible surface: **dual-track smoke** done — Track A manual checklist run end-to-end (real browser / device) + Track B Playwright (or equivalent) green. See `smoke-tracks.md`.
 
 ## Documentation gates
 
 - [ ] `RESUME.md` updated with the milestone's progress section + commit SHAs.
+- [ ] Status-file ring rotated (if the read-first status doc carries closing paragraphs): active section holds active + ≤2 closed entries; oldest closed paragraph moved **verbatim** to the dedicated archive file in the same edit, pointer line present (per `references/roadmap.md` §"Close protocol — the status-file ring"; deliberately not machine-gated).
 - [ ] `iteration-journal.md` has an entry for every task.
 - [ ] Backlog files updated for any deferred items.
 - [ ] Project-wide Q&A log appended with milestone completion record.

@@ -14,7 +14,6 @@ changelog:
   exclude:
     labels:
       - skip-release-notes
-      - sync          # routine live→repo sync commits, not user-visible
       - chore-quiet   # internal chore not worth surfacing
     authors:
       - dependabot
@@ -51,7 +50,6 @@ changelog:
       labels:
         - ci
         - tooling
-        - sync-script
 
     - title: ⬆️ Dependencies
       labels:

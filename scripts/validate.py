@@ -4,13 +4,19 @@
 Checks:
 1. ``.claude-plugin/marketplace.json`` parses as JSON and has required fields.
 2. ``.claude-plugin/plugin.json`` parses as JSON and has required fields.
-3. Every ``skills/*/SKILL.md`` has valid frontmatter (``name`` + ``description``).
-4. Every reference mentioned in ``SKILL.md`` exists on disk.
-5. Every ``commands/*.md`` listed in ``scripts/commands-manifest.txt``
+3. Each sibling plugin dir (``.qoder-plugin``, ``.codebuddy-plugin``) has a ``plugin.json``
+   and ``marketplace.json`` that parse as JSON, carry required fields, and match the Claude
+   plugin manifest on ``name`` and ``version``.
+4. The top-level ``plugin.json`` (Antigravity native manifest) parses as JSON, has
+   ``name`` + ``description``, and matches the Claude manifest ``name`` (its schema forbids
+   a ``version`` field, so it is name-checked only).
+5. Every ``skills/*/SKILL.md`` has valid frontmatter (``name`` + ``description``).
+6. Every reference mentioned in ``SKILL.md`` exists on disk.
+7. Every ``commands/*.md`` listed in ``scripts/commands-manifest.txt``
    exists on disk and has frontmatter with at least a ``description``.
-6. Every command file under ``commands/`` is listed in the manifest (and
+8. Every command file under ``commands/`` is listed in the manifest (and
    vice versa) — no orphans, no missing files.
-7. All ``.md`` files are valid UTF-8.
+9. All ``.md`` files are valid UTF-8.
 
 Pure stdlib. Run locally or in CI:
 
@@ -137,13 +143,49 @@ def check_commands(commands_dir: Path, manifest_path: Path) -> None:
         check_command_frontmatter(commands_dir / name)
 
 
+def check_sibling_manifest(dir_name: str, ref_plugin: dict | None) -> None:
+    """Validate a sibling plugin dir (.qoder-plugin / .codebuddy-plugin) — its plugin.json
+    and marketplace.json must agree with the Claude manifest on name + version."""
+    spl = check_json(REPO / dir_name / "plugin.json", {"name"})
+    if ref_plugin and spl:
+        if ref_plugin.get("version") != spl.get("version"):
+            error(
+                f"version mismatch: .claude-plugin/plugin.json has {ref_plugin.get('version')!r}, "
+                f"but {dir_name}/plugin.json has {spl.get('version')!r}"
+            )
+        if ref_plugin["name"] != spl["name"]:
+            error(
+                f"name mismatch: .claude-plugin/plugin.json name '{ref_plugin['name']}' "
+                f"does not match {dir_name}/plugin.json name '{spl['name']}'"
+            )
+    smp = check_json(REPO / dir_name / "marketplace.json", {"name", "owner", "plugins"})
+    if smp and not isinstance(smp.get("plugins"), list):
+        error(f"{dir_name}/marketplace.json 'plugins' must be a list")
+    if smp and spl:
+        names = {p.get("name") for p in smp.get("plugins", []) if isinstance(p, dict)}
+        if spl["name"] not in names:
+            error(
+                f"{dir_name}/plugin.json name '{spl['name']}' not listed in "
+                f"{dir_name}/marketplace.json plugins (got {sorted(names)})"
+            )
+        versions = {
+            p.get("version") for p in smp.get("plugins", [])
+            if isinstance(p, dict) and p.get("name") == spl["name"]
+        }
+        if spl.get("version") not in versions:
+            error(
+                f"version mismatch: {dir_name}/plugin.json has {spl.get('version')!r}, "
+                f"but {dir_name}/marketplace.json lists {sorted(versions)} for plugin '{spl['name']}'"
+            )
+
+
 def main() -> int:
     # 1. marketplace.json
     mp = check_json(REPO / ".claude-plugin" / "marketplace.json", {"name", "owner", "plugins"})
     if mp and not isinstance(mp.get("plugins"), list):
         error("marketplace.json 'plugins' must be a list")
 
-    # 2. plugin.json
+    # 2. Claude plugin.json
     pl = check_json(REPO / ".claude-plugin" / "plugin.json", {"name", "description"})
 
     # marketplace ↔ plugin name consistency
@@ -154,6 +196,20 @@ def main() -> int:
                 f"plugin.json name '{pl['name']}' not listed in marketplace.json plugins "
                 f"(got {sorted(names_in_market)})"
             )
+
+    # 2b. Sibling plugin manifests (Qoder, CodeBuddy) — must match the Claude manifest.
+    check_sibling_manifest(".qoder-plugin", pl)
+    check_sibling_manifest(".codebuddy-plugin", pl)
+
+    # 2c. Antigravity native manifest (top-level plugin.json). Its schema is
+    #     additionalProperties:false with only name + description — no version field —
+    #     so it is never version-bumped; enforce name agreement with Claude only.
+    agy = check_json(REPO / "plugin.json", {"name", "description"})
+    if pl and agy and pl["name"] != agy["name"]:
+        error(
+            f"name mismatch: .claude-plugin/plugin.json name '{pl['name']}' "
+            f"does not match plugin.json (Antigravity) name '{agy['name']}'"
+        )
 
     # 3. Per-skill checks
     skills_dir = REPO / "skills"
@@ -176,7 +232,7 @@ def main() -> int:
     if ERRORS:
         print(f"\nFAILED: {len(ERRORS)} error(s)", file=sys.stderr)
         return 1
-    print("OK: marketplace + plugin + skill references + commands + UTF-8 all valid")
+    print("OK: Claude + Qoder + CodeBuddy + Antigravity manifests + skill references + commands + UTF-8 all valid")
     return 0
 
 

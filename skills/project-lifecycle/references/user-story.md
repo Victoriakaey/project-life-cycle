@@ -90,6 +90,30 @@ Behaviors the story *doesn't directly require* but the builder needs to think ab
 - {Timezone: timestamps must be UTC at storage, local at render}
 - {Retry safety: handler must be idempotent}
 
+## Contingencies (pre-declared "when X → do Y")
+
+Foreseeable mid-implementation situations with a pre-decided response, declared at story time and injected verbatim into the builder prompt (cadence step 1). The builder consults this list before escalating: a situation matching a declared contingency follows the pre-decided action (noted in the Builder Summary); only undeclared surprises escalate via BLOCKED / NEEDS_CONTEXT.
+
+- {When the third-party API rate-limits during backfill → switch to batched mode, log a Findings entry}
+- {When the migration finds rows violating the new constraint → abort, surface the row count, do NOT auto-fix data}
+- or: `none` — written explicitly. Absence must be a decision, not an omission.
+
+Rules:
+- Format is `when <observable situation> → <single pre-decided action>`. "Handle gracefully" is not an action.
+- Only situations foreseeable at story time. Mid-task surprises still follow status reporting + `diagnose-loop.md`.
+- A contingency is NOT an AC — it gets no acceptance test unless promoted to one.
+
+## Invariants (machine-checkable, optional)
+
+Phase-specific constraints that pure code can verify — distinct from ACs (behavior promises) and Edge Cases (builder awareness). Each entry MUST ship with a runnable check command; an invariant without a command is an Edge Case, not an invariant.
+
+- {No response payload exceeds 1 MB → `bun run check:payload-size`}
+- {Schema round-trips losslessly → `make schema-roundtrip`}
+
+Rules:
+- Run each declared command once at declaration time (it must work and must be able to fail — a check that cannot fail, e.g. `echo ok`, is rejected).
+- At phase close, run all declared invariant commands and include output in the test-evidence/PR comment. The close gate runs every invariant the manifest declares, so declare yours there rather than running them by hand.
+
 ## Open Questions
 
 Things genuinely unknown. NEVER guess — list them, surface to user, block on answers.
@@ -110,7 +134,7 @@ Things genuinely unknown. NEVER guess — list them, surface to user, block on a
 |---|---|
 | `spec.md` | Maps each AC → data model / API / file changes needed to satisfy it |
 | `plan.md` | Tasks are organized so each task closes ≥1 AC (no orphan tasks, no orphan ACs) |
-| Backend builder | Implements ACs assigned to its scope; cross-checks scope against "Out of Scope" before adding anything |
+| Backend builder | Implements ACs assigned to its scope; cross-checks scope against "Out of Scope" before adding anything; receives Contingencies verbatim in its prompt |
 | Frontend builder | Same; reads BE builder summary to consume API contract |
 | Acceptance verifier | Writes 1 test per AC; reports per-AC pass/fail |
 | Validator | Reports any AC without test coverage, any code without an AC, any "Out of Scope" item that snuck in |
@@ -133,3 +157,6 @@ Things genuinely unknown. NEVER guess — list them, surface to user, block on a
 - **Skipping the file for "this is obvious"** — the obvious feature is where the most scope creep happens, because nobody wrote down what "done" means.
 - **Renumbering ACs mid-phase** — breaks test names, journal links, validator references. Append, don't renumber.
 - **Writing the spec before the story is approved** — defeats the checkpoint. Spec assumptions baked into a wrong story = expensive rewrite. Stop and get the story signed.
+- **Contingency phrased without an observable trigger or a single concrete action** — "when things go wrong → be careful" gives the builder nothing. Either sharpen to `when <observable> → <action>` or delete it.
+- **Builder improvises on a situation a declared contingency covers** — the pre-decided action exists precisely so the builder doesn't guess; re-dispatch with the contingency quoted.
+- **Invariant declared without a runnable check command** — that's an Edge Case wearing an invariant's name. Move it, or write the command.

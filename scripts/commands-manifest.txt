@@ -2,15 +2,16 @@
 #
 # One filename per line, relative to `commands/` in this repo and to
 # `~/.claude/commands/` on disk. Lines beginning with `#` and blank
-# lines are ignored. sync.sh reads this file to decide what to mirror
+# lines are ignored. The mirror step reads this file to decide what to mirror
 # between live and repo (it does NOT mirror the whole commands directory,
 # only the entries listed here).
 #
 # To add a new command:
 #   1. Author it live at ~/.claude/commands/<name>.md
 #   2. Append `<name>.md` here
-#   3. Run `./scripts/sync.sh push --commit`
+#   3. Commit the updated manifest
 
 ship.md
 release.md
 init-harness.md
+builder-profile.md

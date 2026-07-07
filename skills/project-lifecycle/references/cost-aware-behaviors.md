@@ -44,6 +44,7 @@ Even where cost is not the binding constraint, **every token should earn its pla
 
 - **`/clear` at natural breaks** — phase boundary, task boundary, when context >50% and starting fresh work. The handoff doc + RESUME.md + mid-phase resume note make `/clear` safe.
 - **Hot-path artifacts before /clear**: confirm handoff doc / journal / resume note are written so the next session has a tight entry point.
+- **Deterministic backstop:** the `/clear at >50%` rule above is model-discipline; `hooks/context-floor.sh` (machine-local global PreToolUse:Edit|Write hook) enforces an absolute-token floor (default 150K) that blocks new Edit/Write until RESUME.md is refreshed. It is deliberately a hard block only — soft, advisory warnings are left to whatever session monitoring your host provides. See `references/harness-primitives.md` §9. Tune `PLC_CONTEXT_FLOOR` after watching it fire a few times.
 
 ### Skill invocation triage
 

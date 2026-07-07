@@ -7,9 +7,8 @@ This repo follows the **same discipline the skill itself prescribes** — `refer
 ## Before you open a PR
 
 1. **One change, one PR.** Mixing a new reference + a workflow tweak + a doc rewrite in one PR makes the changelog entry incoherent and the release-notes label ambiguous.
-2. **Edit live first** (`~/.claude/skills/project-lifecycle/`), prove it works on a real phase, **then** push via `./scripts/sync.sh push --commit`. The repo is the publish boundary; speculative edits to the repo without trying them on a real phase produce drift the next live edit overwrites.
-3. **`scripts/sync.sh check`** must pass — no drift between live and repo.
-4. **`python3 scripts/validate.py`** must pass — manifest JSON, marketplace ↔ plugin name agreement, SKILL.md frontmatter, reference link integrity, command frontmatter + manifest reconciliation, UTF-8.
+2. **The repo is the single source of truth.** Edit it directly on a feature branch. Try unreleased changes on a real phase via `claude --plugin-dir <repo-path>` — the working tree shadows the installed marketplace version for that session. The flag is per-session: confirm what's loaded via `/plugins` before trusting the result. SKILL.md / reference text edits apply immediately; `hooks/` and `commands/` changes need `/reload-plugins`. Record the commit SHA when reporting a finding from such a run.
+3. **`python3 scripts/validate.py`** must pass — manifest JSON, marketplace ↔ plugin name agreement, SKILL.md frontmatter, reference link integrity, command frontmatter + manifest reconciliation, UTF-8.
 
 ## Commit messages — Conventional Commits
 
@@ -32,7 +31,6 @@ Subset enforced:
 | `refactor` | (no bump) | Internal restructure with no behavior change |
 | `chore` | (no bump) | Tooling / housekeeping |
 | `ci` | (no bump) | CI / workflow change |
-| `sync` | (no bump) | Routine live → repo mirror (`./scripts/sync.sh push --commit` default) |
 
 English on durable artifacts (commit, PR body, CHANGELOG, code comments). Chat / Q&A / project journal entries may use the user's preferred language; the repo boundary stays English so it's greppable across reviewers + projects.
 
@@ -45,13 +43,20 @@ PR title MUST use Conventional Commits style. This is what GitHub auto-release-n
 Bad: `Adds the new validator`
 Good: `feat(cadence): add read-only validator at step 2`
 Good: `feat!: split implementer into BE + FE builders (breaking)`
-Good: `fix(sync): rsync now honors commands manifest exclusions`
+Good: `fix(validate): reject mismatched manifest versions`
 
 ## PR body — mandatory 3-section format
 
 Use the template in `skills/project-lifecycle/references/handoff-template.md` §"PR description appendix":
 
 ```markdown
+## TL;DR
+<plain-language, zero jargon, 4 bullet points in this order:
+- **Problem** — the symptom, not the code
+- **What we did** — by effect, not implementation
+- **Why we did it** — the plain-words motivation/trade-off (not §2's technical justification)
+- **Result + honest boundary** — what's better AND what this does NOT do>
+
 ## 1. What was done
 <2-4 sentence plain-English prose intro>
 ### Use cases (REQUIRED for new user-facing features)
@@ -72,7 +77,7 @@ Use the template in `skills/project-lifecycle/references/handoff-template.md` §
 - [ ] PR title in Conventional Commits style
 ```
 
-§1 prose intro is non-negotiable; file bullets alone don't tell reviewers what the PR does. The §1 intro is what GitHub surfaces in release notes.
+The TL;DR is non-negotiable and distinct from §1 — different audience (the skimmer who does not know this code vs the reviewer about to read the diff). §1 prose intro is non-negotiable; file bullets alone don't tell reviewers what the PR does. The §1 intro is what GitHub surfaces in release notes.
 
 ## PR label — exactly one
 
@@ -89,10 +94,9 @@ Pick one from the taxonomy. The label drives the auto-generated release notes vi
 | `convention` | New / changed Mandatory Convention or Red Flag |
 | `bug` / `fix` | Bug fix |
 | `docs` | Docs-only |
-| `ci` / `tooling` / `sync-script` | CI workflow / validator / sync mechanism |
+| `ci` / `tooling` | CI workflow / validator / repo tooling |
 | `dependencies` | Bumps + lockfile updates |
 | `chore` | Repo housekeeping |
-| `sync` | Routine `sync:` commit (excluded from release notes) |
 | `skip-release-notes` | Explicit opt-out for internal-only churn |
 
 Uncategorized PRs land in "Other Changes" catch-all → fix before merge.
@@ -117,7 +121,6 @@ Good: `Cadence step 2 renamed from "spec compliance review" to Validator; now st
 
 Exempt PRs (no changelog line required):
 
-- Routine `sync:` commits between live and repo (label `sync`).
 - Internal-only refactors with zero user-visible delta (label `chore-quiet` or `skip-release-notes`).
 - Test-only additions that don't change behavior (label `chore`).
 - Comment-only / formatting-only changes (label `chore`).
@@ -148,10 +151,10 @@ CI validator rejects mismatched manifest versions; never bypass.
 ## Repo layout pointers
 
 - `skills/project-lifecycle/SKILL.md` — entry point, 10-step per-phase workflow.
-- `skills/project-lifecycle/references/` — per-topic discipline files. Edit live first.
+- `skills/project-lifecycle/references/` — per-topic discipline files.
 - `skills/project-lifecycle/references/changelog.md` — canonical discipline spec; mirrored in this CONTRIBUTING.md.
 - `commands/` — slash commands shipped with the plugin. Add via `scripts/commands-manifest.txt`.
-- `scripts/sync.sh` / `scripts/validate.py` — live ↔ repo bridge + validator.
+- `scripts/validate.py` — repo validator (run before every PR).
 - `.github/release.yml` — release-notes label taxonomy (PR labels → release-notes sections).
 - `.github/workflows/validate.yml` — CI validator on every push / PR.
 - `.github/workflows/release.yml` — tag-driven GitHub Release builder.

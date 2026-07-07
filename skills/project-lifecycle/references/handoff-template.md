@@ -54,17 +54,21 @@ The handoff doc's last section is a copy-paste PR body. **MANDATORY 3-section sh
 ```markdown
 ## TL;DR
 
-**Plain-language, 3-5 sentences, ZERO jargon — at the very top, before
+**Plain-language, 4-6 sentences, ZERO jargon — at the very top, before
 everything else.** Written for someone who does NOT know this part of the
 code and is skimming to learn "what did this PR actually do." Any technical
 term (conflict-guard / topology-blind / I≈0 / bucketer / etc.) is either
 avoided OR immediately followed by a plain-English gloss in parentheses.
-Fixed three-part shape, in this order:
+Fixed four-part shape, in this order:
 
 - **Problem** — what was wrong / missing before. Describe the *symptom* a
   human would notice, NOT the code.
 - **What we did** — what this PR changes, described by *effect*, not
   implementation.
+- **Why we did it** — the motivation or trade-off that made THIS change
+  the right one (and not something else), in plain words. NOT an
+  implementation justification — that's §2's job; this is the one-sentence
+  "because" a skimmer needs to judge whether the change makes sense.
 - **Result + honest boundary** — what's better now, AND explicitly what we
   did NOT do / could not do. Especially required when the deliverable is
   "acknowledging a limit" — say what the limit is, in plain words.
@@ -117,8 +121,8 @@ File-by-file bullet list:
 - ⚠️ partial: <which DoD remains open + why>
 
 ## Changelog + label (MANDATORY pre-merge checklist)
-- [ ] Added one-line bullet to `CHANGELOG.md` `[Unreleased]` under right Keep-a-Changelog category (Added / Changed / Deprecated / Removed / Fixed / Security) — OR PR is exempt (routine `sync:` / internal refactor with zero user-visible delta, in which case apply `sync` / `chore-quiet` / `skip-release-notes` label)
-- [ ] Applied exactly one category label from `references/changelog.md` taxonomy (`breaking` / `feature` / `new-reference` / `new-command` / `cadence` / `workflow` / `convention` / `bug` / `fix` / `docs` / `ci` / `tooling` / `sync-script` / `dependencies` / `chore` / `sync` / `skip-release-notes`)
+- [ ] Added one-line bullet to `CHANGELOG.md` `[Unreleased]` under right Keep-a-Changelog category (Added / Changed / Deprecated / Removed / Fixed / Security) — OR PR is exempt (internal refactor with zero user-visible delta, in which case apply `chore-quiet` / `skip-release-notes` label)
+- [ ] Applied exactly one category label from `references/changelog.md` taxonomy (`breaking` / `feature` / `new-reference` / `new-command` / `cadence` / `workflow` / `convention` / `bug` / `fix` / `docs` / `ci` / `tooling` / `dependencies` / `chore` / `skip-release-notes`)
 - [ ] PR title in Conventional Commits style (`feat:` / `fix:` / `feat!:` for breaking / `docs:` / etc.) — this is what auto-release-notes surfaces
 ```
 
@@ -179,8 +183,9 @@ fill in the detail.
 
 **TL;DR is non-negotiable AND distinct from §1.** Different audience,
 different register. TL;DR = the skimmer who does NOT know this code; zero
-jargon; gloss any term in parentheses; fixed Problem / What we did / Result
-+ honest boundary shape. §1 = the reviewer about to read the diff; project
+jargon; gloss any term in parentheses; fixed Problem / What we did / Why we
+did it / Result + honest boundary shape. §1 = the reviewer about to read
+the diff; project
 vocabulary allowed, file-level detail follows. Do NOT collapse the two — a
 jargon-free TL;DR that an outsider reads is the point. If the PR's whole
 deliverable is "we admit a limit we couldn't fix," the TL;DR's Result line

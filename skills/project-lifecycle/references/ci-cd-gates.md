@@ -233,7 +233,7 @@ Use `gh pr comment <PR#> --body "..."` (or equivalent). Comment must include:
 6. **Phase-specific suite outputs** — any new test files this phase introduced (e.g. `tests/<area>/<phase>-<surface>.test.<ext>`, Track B smoke harness).
 7. **Track A manual smoke summary table** (if user-visible phase) — stages × cases × pass/fail.
 8. **Findings tally** — S1 (must-fix-before-merge) / S2 (ship with follow-up) / S3 (forward-looking backlog) counts. For each deferred S3, list Trigger + Exit criteria.
-9. **Copilot or stand-in review status** — for default path: "@copilot review triggered → N findings → resolved in <SHA>". For Pattern E: "Copilot job aborted with billing error → stand-in subagent dispatched → APPROVED-CLEAN at <SHA>".
+9. **Copilot or stand-in review status** — for default path: "@copilot review triggered → N findings → resolved in <SHA>". For Pattern E: "Copilot job aborted with billing error → stand-in subagent dispatched → APPROVED-CLEAN at <SHA> (derived: zero open CRITICAL/IMPORTANT in pass-2 findings)".
 10. **Merge-readiness statement** — "Ready for merge; will flip RESUME post-merge" / "Blocked on X" / "Awaiting human Track A confirmation".
 
 ### Default-path specifics

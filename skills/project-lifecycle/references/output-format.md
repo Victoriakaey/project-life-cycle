@@ -73,6 +73,8 @@ html-policy: ask | always-md | always-html
 smoke-mode: ask | self | guided
 domain-docs: ./CONTEXT.md          # or ./CONTEXT-MAP.md for multi-context repos
 comprehension: off | lite | full
+close-gate: per-task | pr-boundary
+archetype: auto | builder | prototyper | sweeper | grower | maintainer | off
 ```
 
 Defaults:
@@ -80,6 +82,8 @@ Defaults:
 - `smoke-mode` = `ask` (skill prompts at smoke kickoff)
 - `domain-docs` = unset (skill discovers `CONTEXT.md` / `CONTEXT-MAP.md` at repo root if present; explicit pointer beats auto-discovery for multi-context or non-root layouts)
 - `comprehension` = `off` (anti-cognitive-offloading co-discovery round is opt-in; see `comprehension-co-discovery.md`)
+- `close-gate` = `per-task` (where the human-blocking close approval sits; see `close-gate.md` §"Approval timing")
+- `archetype` = `auto` (intent-gate infers the work's archetype per request + one-tap confirm; reshapes the chain Size routed into; see `intent-gate.md` §"Archetype")
 
 Values:
 - `html-policy: always-md` → skip all HTML opt-in questions; force MD everywhere
@@ -88,6 +92,8 @@ Values:
 - `smoke-mode: guided` → AI walks user through each smoke stage step by step (recommended default for solo-developer projects)
 - `comprehension: lite` → run the COMPREHEND co-discovery round once per phase (the MVP — `cadence.md` §"Comprehension Co-Discovery"); one *why*-question on the validated diff, discovery framing, non-blocking, no scoreboard, <30s
 - `comprehension: full` → accepted as a synonym of `lite`; the COMPREHEND round runs once per phase either way.
+- `archetype: <name>` → pins a default archetype for a repo whose work is overwhelmingly one kind (e.g. a mature service → `maintainer`); still per-request overridable. `archetype: off` → always Builder baseline (full backward-compat, no archetype reshaping). The `auto` default infers + one-tap-confirms per request, which is also the guard against archetype freezing into a fixed box. See `intent-gate.md` §"Archetype"
+- `close-gate: pr-boundary` → the per-task human-blocking approval is delegated to an independent read-only reviewer subagent; Task Close Reports are still written every task (audit trail, non-blocking); the human's blocking approval happens once per PR/merge, which MUST keep a human-written approval marker the AI cannot author (the self-certification hole stays closed). Deterministic `task-done`/`phase-done` gates are unchanged in both modes. Treat the flip as an experiment (catch parity + comprehension drift over 2-3 tracks; rollback = flip the key back). Full mechanics + attack surface in `close-gate.md` §"Approval timing"
 
 ## Smoke interaction modes (Mode A vs Mode B)
 

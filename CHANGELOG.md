@@ -10,6 +10,83 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 Nothing yet.
 
+## [1.0.0] - 2026-07-07
+
+### Added
+
+- Adds native support for Codex, Qoder, CodeBuddy, and Antigravity, alongside Claude Code.
+- Splits the README into a short landing page plus a full guide carrying the complete workflow narrative and repository map.
+
+### Changed
+
+- Relicenses from MIT to PolyForm Perimeter 1.0.1 (more restrictive than MIT — review the new terms if you redistribute).
+
+## [0.12.0] - 2026-07-03
+
+### Added
+
+- Internal tooling; no user-facing change.
+
+## [0.11.0] - 2026-06-30
+
+### Added
+
+- Adds an "archetype" classification (Builder / Prototyper / Sweeper / Grower / Maintainer) that shapes which review steps and quality checks a request goes through.
+- For cleanup-only work, requires the change to actually shrink the codebase, or an explicit documented reason why not.
+
+## [0.10.0] - 2026-06-26
+
+### Added
+
+- Adds an opt-in percentage-based trigger for the context floor, for models with much larger context windows.
+
+## [0.9.1] - 2026-06-25
+
+### Fixed
+
+- Fixes the context-floor block message to show a percentage that matches what your own status line reports, instead of only raw token counts.
+
+## [0.9.0] - 2026-06-24
+
+### Added
+
+- Adds a hard context-usage floor: past a configurable threshold, edits are blocked until you checkpoint your progress, closing the gap left by softer warnings.
+
+## [0.8.0] - 2026-06-12
+
+### Added
+
+- Adds an unattended ("AFK") run mode with a required goal/stop/budget/report contract, a budget circuit-breaker, and an exit report — merging always stays a human action.
+
+### Fixed
+
+- Fixes enforcement hooks that silently failed to load under a plugin install, caused by an incorrect file path.
+
+## [0.7.0] - 2026-06-11
+
+### Changed
+
+- Extends the hard-bug diagnosis workflow to check past lessons first and record a new one afterward, so the same root cause isn't re-discovered from scratch next time.
+
+## [0.6.0] - 2026-06-11
+
+### Added
+
+- Adds a structured, auditable review record for AI code review: fresh context, read-only tools, evidence quoted per finding, and a verdict computed last rather than self-declared.
+- Adds a coverage check confirming every commit since the last review round is actually covered before merge.
+
+## [0.5.0] - 2026-06-11
+
+### Added
+
+- Adds a `close-gate` policy for choosing where human approval happens — every task, or once per pull request with an independent review filling the gap in between.
+- Adds `/builder-profile`, a command that reads your own local session history and reports back how you actually use the coding agent — entirely local, nothing uploaded.
+- Adds a rolling-archive pattern so a project's status file stays a manageable size instead of growing forever.
+
+### Fixed
+
+- Fixes a safety-guard false positive that blocked commits whose *message* merely mentioned `main` or `--no-verify`, rather than commands that actually did either.
+
 ## [0.4.0] - 2026-06-08
 
 ### Added
@@ -55,5 +132,6 @@ Initial release.
 - Adds a research protocol for locking design decisions, backed by a second, independent reviewer check.
 - Adds Architectural Decision Records, a domain glossary convention, and delivery templates (issue breakdown, changelog, PR body).
 
-[Unreleased]: https://github.com/Victoriakaey/project-life-cycle/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Victoriakaey/project-life-cycle/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Victoriakaey/project-life-cycle/compare/v0.4.0...v1.0.0
 [0.4.0]: https://github.com/Victoriakaey/project-life-cycle/releases/tag/v0.4.0

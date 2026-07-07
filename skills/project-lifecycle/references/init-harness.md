@@ -316,7 +316,7 @@ See `commands/init-harness.md` §Anti-patterns. Two worth restating here:
 - `references/builder-split.md` — `folder-map` schema this command generates.
 - `references/deterministic-handlers.md` — handler pattern + canonical examples this command scaffolds.
 - `references/changelog.md` — CHANGELOG format this command seeds.
-- `references/output-format.md` — policy keys (`html-policy`, `smoke-mode`, `domain-docs`) this command pre-fills.
+- `references/output-format.md` — policy keys (`html-policy`, `smoke-mode`, `domain-docs`, `comprehension`, `close-gate`) this command pre-fills.
 - `references/context-md.md` — CONTEXT.md format this command seeds.
 - `references/roadmap.md` — `docs/ROADMAP.md` whole-plan-map convention this command seeds.
 - `references/document-indexing.md` — TOC scheme for RESUME.md + iteration-journal.md placeholders.

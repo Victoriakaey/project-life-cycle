@@ -2,15 +2,20 @@
 
 Canonical spec for cutting a release under the `project-lifecycle` skill's discipline. The slash command `/release` (shipped via `commands/release.md`) automates everything below; this reference is the contract `/release` follows + the manual fallback when something needs hand intervention.
 
-> If you're authoring a fresh project that uses this skill, ship `commands/release.md` from this skill's marketplace + add `CHANGELOG.md` + the two `.claude-plugin/` manifests + `.github/workflows/release.yml`. From then on, releases are: edit nothing, type `/release`.
+> If you're authoring a fresh project that uses this skill, ship `commands/release.md` from this skill's marketplace + add `CHANGELOG.md` + the two `.claude-plugin/` manifests + the two `.qoder-plugin/` manifests + the two `.codebuddy-plugin/` manifests + `.github/workflows/release.yml`. From then on, releases are: edit nothing, type `/release`.
 
 ## Inputs the process depends on
 
 | Artifact | Path | Owner |
 |---|---|---|
 | Version log | `CHANGELOG.md` (Keep a Changelog 1.1.0) | Maintained per-PR per `references/changelog.md` |
-| Plugin manifest | `.claude-plugin/plugin.json` | `version` field |
-| Marketplace manifest | `.claude-plugin/marketplace.json` | `plugins[0].version` (must match plugin.json) |
+| Claude plugin manifest | `.claude-plugin/plugin.json` | `version` field |
+| Claude marketplace manifest | `.claude-plugin/marketplace.json` | `plugins[0].version` (must match plugin.json) |
+| Qoder plugin manifest | `.qoder-plugin/plugin.json` | `version` field (must match plugin.json) |
+| Qoder marketplace manifest | `.qoder-plugin/marketplace.json` | `plugins[0].version` (must match plugin.json) |
+| CodeBuddy plugin manifest | `.codebuddy-plugin/plugin.json` | `version` field (must match plugin.json) |
+| CodeBuddy marketplace manifest | `.codebuddy-plugin/marketplace.json` | `plugins[0].version` (must match plugin.json) |
+| Antigravity native manifest | `plugin.json` (top-level) | `name` + `description` only — schema forbids a `version` field, so it is **not** version-bumped; the validator name-checks it against the Claude manifest |
 | Release workflow | `.github/workflows/release.yml` | Tag-driven; extracts CHANGELOG section as body |
 | Release-notes config | `.github/release.yml` | PR-label grouping for auto-generated notes |
 | Repo validator | `scripts/validate.py` | Rejects mismatched manifest versions; enforces UTF-8 + frontmatter + reference link integrity |
@@ -41,6 +46,10 @@ Pre-1.0 caveat: while at `0.x.y`, breaking changes can theoretically ship in MIN
      - Insert new line `[X.Y.Z]: …compare/v<PREV>...vX.Y.Z`
 2. **`.claude-plugin/plugin.json`** → `version` = `X.Y.Z`.
 3. **`.claude-plugin/marketplace.json`** → `plugins[0].version` = `X.Y.Z`.
+4. **`.qoder-plugin/plugin.json`** → `version` = `X.Y.Z`.
+5. **`.qoder-plugin/marketplace.json`** → `plugins[0].version` = `X.Y.Z`.
+6. **`.codebuddy-plugin/plugin.json`** → `version` = `X.Y.Z`.
+7. **`.codebuddy-plugin/marketplace.json`** → `plugins[0].version` = `X.Y.Z`.
 
 Everything else in the same commit = wrong (mixes user-facing change with the release). The release commit is purely a version-bump + CHANGELOG-rename commit.
 
@@ -66,6 +75,8 @@ Both tag forms are supported by `release.yml`:
 
 Use plain SemVer unless your tool produces the prefixed form.
 
+> **Strict main protection**: projects that adopt the strict main-branch ruleset (PR-required + empty bypass list, per `references/afk-loop.md` §main protection) can't push the release commit to `main` directly — the release commit goes through a PR too. `/release` prepares the release commit on a short-lived branch (e.g. `release/vX.Y.Z`), the human merges it, and the tag is then created on the merge commit. The direct-push flow above only works on repos without the strict ruleset.
+
 ## What the workflow does on tag push
 
 `.github/workflows/release.yml` triggers on push of either tag form. It:
@@ -89,7 +100,7 @@ gh release create vX.Y.Z --title vX.Y.Z --notes-file /tmp/notes.md
 - [ ] Release exists and is marked Latest (`gh release view vX.Y.Z`)
 - [ ] Release body starts with the `## [X.Y.Z] — YYYY-MM-DD` heading + the intro paragraph
 - [ ] CHANGELOG `[Unreleased]` is empty / placeholder
-- [ ] Both manifests on `main` agree on `X.Y.Z`
+- [ ] All plugin manifests on `main` agree on `X.Y.Z`
 - [ ] Compare link `[X.Y.Z]: …compare/v<PREV>...vX.Y.Z` works (returns a non-empty diff)
 
 ## Common failure modes + recovery
@@ -121,7 +132,7 @@ gh release edit v<NEWER> --latest
 ## Frequency + cadence guidance
 
 - **Cut releases on milestone boundaries**, not per-PR. Many PRs → one release.
-- **Don't ship a release with only `sync:` / chore-quiet entries** — that's a non-release. Either accumulate more or skip until there's user-visible content.
+- **Don't ship a release with only chore-quiet entries** — that's a non-release. Either accumulate more or skip until there's user-visible content.
 - **A typical month for an active skill**: 1–3 MINOR releases + 0–2 PATCH releases. If you're cutting more than 5/month, you're either over-versioning (consolidate) or your `[Unreleased]` discipline is bleeding (a `feature` is being labelled as a `fix`).
 - **Pre-1.0 (`0.x.y`)**: ship freely; users expect churn. **Post-1.0**: every MINOR is a public commitment to compatibility within the major line.
 

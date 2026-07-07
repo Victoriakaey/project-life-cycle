@@ -244,14 +244,22 @@ Pattern:
 
 The screenshot spec is committed in the same PR + lives in the regression suite forever. Future UI changes regenerate the screenshots; diff shows what changed visually, not just textually.
 
+## Review record — two companion comments (mandatory when reviewer subagents ran)
+
+Separate from the 9-layer audit narrative: when independent reviewer subagents reviewed this PR's work (always true in `close-gate: pr-boundary` mode), the PR carries the **bidirectional review record** as two additional comments — (A) the reviewer's report **verbatim** (the writer must not condense or re-synthesize it; scope header with SHA range + method + "not reviewed" list; dispatch-prompt provenance folded) and (B) the **builder response** (per-finding Agree/Disagree + why, re-graded severity, what changed with SHA, what was deliberately not changed, closing Net judgment). Layer 6 keeps the disposition *summary*; the record carries the *reasoning* — the merger audits whether each review-fix was premised on a correct reading of the finding. Full spec, dispatch constraints, fix-routing rules, and coverage-window check in `references/review-record.md`.
+
 ## Draft-first workflow (write to disk, commit, then post)
 
 **Write the PR body + comment as `.md` files in `docs/pr-drafts/` BEFORE invoking `gh pr create` / `gh pr comment`.**
+
+**PR-thread content passes the same hygiene gates as committed content — BEFORE the `gh` call.** Anything posted to a PR (body, comments, review records) is published, durable, and invisible to git-side gates (a pre-push hook cannot see a `gh api` call). If the project enforces a language policy (e.g. English-only durable artifacts) or a secrets/identifier leak gate on commits, run the same checks on every `docs/pr-drafts/*.md` file before posting it. The draft-first workflow exists precisely so there is a file to scan — a comment composed inline in the `gh` command has no gate at all.
 
 ```
 docs/pr-drafts/
 ├── YYYY-MM-DD-phase-X.Y-pr-body.md
 ├── YYYY-MM-DD-phase-X.Y-pr-comment.md
+├── YYYY-MM-DD-phase-X.Y-review-verbatim.md      ← review record comment A (see review-record.md)
+├── YYYY-MM-DD-phase-X.Y-builder-response.md     ← review record comment B
 ├── YYYY-MM-DD-phase-X.Y-followup-decisions.md   ← if reviewer asks get answered post-open
 └── screenshots/
     ├── 01-list-page.png

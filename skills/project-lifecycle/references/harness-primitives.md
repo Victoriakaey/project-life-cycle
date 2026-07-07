@@ -56,7 +56,8 @@ wiring required.
   frontmatter command string — the script is unit-testable standalone (pipe it a
   fake event JSON, assert stdout shape + exit code); the frontmatter is not.
 - A broken frontmatter `hooks:` block can make the skill fail to load. Always run
-  the YAML-parse + script-standalone checks (see `hooks/test-hooks.sh`) before sync.
+  the YAML-parse + script-standalone checks (see `hooks/test-hooks.sh`) before
+  committing a hook change.
 - Live skill edits do not reload mid-session — new/changed hooks take effect next
   session.
 
@@ -184,6 +185,20 @@ a platform-enforced gate that cannot edit until the user exits plan mode.
 - **`/goal`** (v2.1.139): set a completion condition; Claude keeps working across
   turns until met. Useful for a long-running phase that spans `/clear` boundaries —
   encode the phase's exit criteria (close-gate green) as the goal. Optional.
+  **Loop-design rules when adopting it** (🟡 Anthropic loop-design write-up,
+  R. Lance Martin 2026-06 — vendor post, small-n; direction trusted, numbers not):
+  - **The rubric must be checkable, not vibes.** This skill already has one: the
+    close-gate manifest (`make phase-done` criteria). Point the goal at "gate
+    exits 0 with output pasted", never at prose like "phase feels complete".
+  - **Grading stays out of the worker's context.** The write-up's finding —
+    verifier sub-agent outperforms self-critique because grading happens in an
+    independent context window — is this skill's existing rule ("the writer never
+    reviews its own work", controller-computed verdicts). `/goal` adds
+    persistence, NOT a license to self-grade; satisfaction is still judged by the
+    deterministic gate + independent verifier subagents, not by the looping model.
+  - **Layering:** `/goal` = self-correction layer (model keeps hillclimbing);
+    close gate + pre-push hook = un-bypassable floor. The former never replaces
+    the latter.
 - **`/context`** (and `/context all`): visualize what consumes the window
   (CLAUDE.md / skills / subagents / MCP / history). Add to
   `references/cost-aware-behaviors.md` as the tool to decide `/clear` vs `/compact`
@@ -191,6 +206,71 @@ a platform-enforced gate that cannot edit until the user exits plan mode.
 - **`/branch`**: fork the session mid-conversation to try an alternate approach
   without losing the original. Useful during brainstorm when exploring two designs,
   or before a risky refactor. Optional.
+
+---
+
+## 9. Context-saturation hard floor — deterministic block (enforce-only)
+
+**What it is.** `hooks/context-floor.sh`, a single PreToolUse:Edit|Write hook that
+turns the prose "`/clear` at >50%" rule (`cost-aware-behaviors.md`) into a
+deterministic *block*. It reads the transcript JSONL's newest assistant `usage`
+(`input_tokens + cache_read_input_tokens + cache_creation_input_tokens`) to compute
+context occupancy and compares it to an **absolute-token** floor. Over the floor and
+without a fresh `RESUME.md`, it `exit 2`s — blocking the edit until the model
+checkpoints.
+
+**Why no warning / no Stop hook.** A soft "you're getting full, consider
+compacting" warning layer is a separate concern, and deliberately not part of this skill.
+The floor deliberately does the ONE thing a warning
+cannot: a hard block. It is **enforce-only** — no `detect` mode, no Stop hook, no
+additionalContext message.
+
+**Self-arming.** The first over-floor Edit/Write creates a session-keyed marker and
+blocks. A `RESUME.md` newer than that marker clears it and allows work. No separate
+arming step is needed — the gate arms itself on the tool call it blocks.
+
+**RESUME exemption (deadlock guard).** Writing/refreshing `RESUME.md` is the action
+that CLEARS the block — so a Write/Edit whose `tool_input.file_path` resolves to the
+RESUME path (or any `RESUME.md` basename) is NEVER gated. Without this the gate
+deadlocks: you can't write the checkpoint that unblocks you. (Caught in a real session —
+the hook went live mid-session and blocked its own RESUME write.)
+
+**Node it strengthens.** `cost-aware-behaviors.md` §Session boundaries and the
+RESUME contract. The "80% problem" — the model degrading past its own context
+boundary instead of checkpointing — was the one part the soft warners never
+enforced; this is the floor.
+
+**Why machine-local global, NOT skill frontmatter.** Frontmatter hooks fire only
+while the skill is active (§1) and would miss every non-workflow session, which is
+exactly when long single-task sessions saturate. So this wires into the user's
+`~/.claude/settings.json` (fires every session), merged with the other live hooks —
+it does NOT go in the SKILL.md `hooks:` block.
+
+**Wiring (machine-local `~/.claude/settings.json`, MERGE into existing `PreToolUse`):**
+
+```json
+{ "hooks": {
+  "PreToolUse": [ { "matcher": "Edit|Write",
+    "hooks": [{ "type": "command", "command": "<SCRIPT>" }] } ]
+} }
+```
+
+`<SCRIPT>` = absolute path to the installed `context-floor.sh`. That file usually already
+has other `PreToolUse` entries — append, don't clobber.
+
+**Three safety rails.** (1) Never auto-`/clear` — the script only blocks/records;
+the destructive clear is always a human/model action. (2) Threshold is absolute
+tokens by default (`PLC_CONTEXT_FLOOR=150000`) — a rot curve bites by ~50K
+regardless of window size, so a 1M window at 80% = 800K is the wrong frame. But
+window-occupancy is the mental model many users actually run on, so an **opt-in
+window-% mode** is available: set `PLC_CONTEXT_FLOOR_PCT` (e.g. `70`) and the
+trigger becomes `PLC_CONTEXT_WINDOW × pct/100` (window default 1,000,000),
+overriding the absolute floor. Pick one frame; absolute stays the default. (3)
+Escape hatches — `PLC_CONTEXT_FLOOR=0` (and `PLC_CONTEXT_FLOOR_PCT=0`) disables;
+`rm <marker>` overrides once. Anti-nag: after a checkpoint clears the marker, the
+floor re-arms only when occupancy climbs a further `PLC_CONTEXT_FLOOR_STEP`
+(default 30K). Fails OPEN on any read/parse/write error. Tests in
+`hooks/test-hooks.sh`.
 
 ---
 
@@ -206,3 +286,4 @@ a platform-enforced gate that cannot edit until the user exits plan mode.
 | `AskUserQuestion` | opt-in checkpoints | documented (replaces freeform forks) |
 | Plan mode | `/ship` + Plan-step checkpoints | documented |
 | `/goal` `/context` `/branch` | cost-aware / phase span | documented, optional |
+| Context-saturation floor | cost-aware / RESUME contract | **shipped** (`hooks/context-floor.sh` + tests); wire machine-local global |

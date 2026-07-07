@@ -3,5 +3,16 @@
 *~
 .idea/
 .vscode/
+.qoder/
 __pycache__/
 node_modules/
+
+# python test artifacts
+.coverage
+__pycache__/
+.pytest_cache/
+
+docs/
+
+# session-local resume artifact (never publish)
+RESUME.md

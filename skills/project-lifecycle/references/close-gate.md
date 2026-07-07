@@ -18,8 +18,9 @@ State #1 makes skips *obvious*; gate #2 makes them *impossible to hide*.
 ### `task-done` (one cadence task)
 - [ ] a `feat(...)`/`fix(...)` commit exists for this task (not just staged/working-tree)
 - [ ] a `docs:` journal commit exists in the branch range (`origin/main..HEAD`), and the journal entry contains the literal header `## Plan deviations` (present even if body = "none")
-- [ ] a fresh, **non-empty** test-evidence file exists (mtime newer than the feat commit; `-s` not just `-f` — an empty-but-fresh file is a false pass, e.g. an interrupted `tee`) — written by the project's test runner, not by hand; if `test_runs_required` > 1 the file must also contain a `RUNS=N` line with N ≥ required
+- [ ] a fresh, **non-empty** test-evidence file exists (mtime newer than the feat commit; `-s` not just `-f` — an empty-but-fresh file is a false pass, e.g. an interrupted `tee`) — written by the project's test runner, not by hand; if `test_runs_required` > 1 the file must also contain a `RUNS=N` line with N ≥ required. **Scope note:** after a fixup, task-level evidence may be scoped to the suites the fixup diff touched (per `cadence.md` §"Selective re-verification after fixup") — the scoping is task-level ONLY; `phase-done` below always demands full-suite evidence, and that full run is the safety net for anything task-level scoping skipped
 - [ ] no orphan `[DEBUG-` logs remain in the diff
+- [ ] **(Sweeper only)** if a commit in range carries an `Archetype: sweep` trailer, the code diff (`docs/**` + `CHANGELOG.md` excluded) is net-negative LOC **or** a `SWEEP-PERF: <evidence>` line is logged — see §"Sweeper diff-direction"
 - [ ] if any artifact is absent, a `SKIP:` line with a reason exists in the journal "Plan deviations" section
 
 ### `phase-done` (phase close, before PR-merge)
@@ -100,6 +101,15 @@ if [ "$MODE" = task ]; then
   else bad "stale/missing test-evidence — run: $(g test_command)"; fi
   # only ADDED lines (^+), and exclude the gate tooling itself (these scripts legitimately contain "[DEBUG-")
   if git diff HEAD~1 2>/dev/null -- . ':(exclude)scripts/close-gate.sh' ':(exclude)scripts/test-close-gate.sh' | grep -qE '^\+.*\[DEBUG-'; then bad "orphan [DEBUG- logs in diff"; else ok "no orphan debug logs"; fi
+  # Sweeper diff-direction teeth — inert unless a commit in range is tagged 'Archetype: sweep'.
+  # A sweep MUST subtract code (net-negative LOC, audit-artifact paths excluded) or log a SWEEP-PERF win.
+  if git log origin/main..HEAD --format=%B 2>/dev/null | grep -qiE '^Archetype:[[:space:]]*sweep'; then
+    nums="$(git diff --numstat origin/main..HEAD -- . ':(exclude)docs/**' ':(exclude)CHANGELOG.md' 2>/dev/null)"
+    add=$(awk '{a+=$1} END{print a+0}' <<<"$nums"); del=$(awk '{d+=$2} END{print d+0}' <<<"$nums")
+    if [ "$del" -gt "$add" ]; then ok "sweep diff net-negative ($add added, $del deleted)"
+    elif grep -qE '^[[:space:]]*SWEEP-PERF:' "$(g journal)" 2>/dev/null; then ok "sweep diff not net-negative but SWEEP-PERF evidence logged"
+    else bad "Archetype: sweep but diff not net-negative ($add added / $del deleted) and no 'SWEEP-PERF: <evidence>' in journal — a sweep must subtract or prove a perf win"; fi
+  fi
 elif [ "$MODE" = phase ]; then
   [ -n "$PHASE" ] || { echo "✗ phase mode needs PHASE arg"; exit 1; }
   RANGE="origin/main..HEAD"
@@ -255,6 +265,13 @@ git reset --quiet --hard HEAD~1; restore
 git -c user.email=t@t -c user.name=t commit --quiet --allow-empty -m "chore: not a cadence task"
 neg "non-feat/fix HEAD"  'no feat/fix commit'  task
 git reset --quiet --hard HEAD~1; restore
+# Sweeper diff-direction teeth: a sweep-tagged commit that ADDS code must fail; a SWEEP-PERF line rescues it
+printf 'a\nb\nc\n' > .sweep-probe.txt
+git add .sweep-probe.txt && git -c user.email=t@t -c user.name=t commit --quiet -m $'feat: add probe (net-positive)\n\nArchetype: sweep'
+neg "sweep tag + net-positive diff flagged" 'not net-negative' task
+printf '\nSWEEP-PERF: cache cut p99 by 40ms (self-test escape)\n' >> "$(g journal)"
+if bash scripts/close-gate.sh task 2>&1 | grep -qE 'SWEEP-PERF evidence logged'; then echo "  ✓ POS  sweep + SWEEP-PERF escape passes direction check"; pass=$((pass+1)); else echo "  ✗ POS  sweep SWEEP-PERF escape"; failc=$((failc+1)); fi
+git reset --quiet --hard HEAD~1; restore
 # no docs: commit in branch range — use detached wt2 at origin/main (empty range has no docs: commit)
 WT2_DOCS="$TMP/wt2docs"
 if git -C "$ROOT" worktree add --quiet --detach "$WT2_DOCS" origin/main 2>/dev/null; then
@@ -333,6 +350,54 @@ The skill is full of "skip only when…" clauses. Each is individually reasonabl
 
 ---
 
+## Sweeper diff-direction
+
+This is the **one deterministic teeth** the archetype axis (`intent-gate.md` §"Archetype") adds to the gate. The other four archetypes reshape the chain by prose delta (the model applies them, the same way it applies the Size triage); diff direction is enforced because it is the single signal the harness previously had no concept of — nothing stopped a "delete / simplify" task from quietly *adding* surface while flying a cleanup flag.
+
+**What fires it:** any commit in `origin/main..HEAD` carrying an `Archetype: sweep` trailer (written by the gate-front per `intent-gate.md` §"Recording the label"). No such trailer → the check is completely inert; it costs every other archetype nothing.
+
+**What it asserts (task mode):** the code diff over `origin/main..HEAD` — with `docs/**` and `CHANGELOG.md` excluded, because those audit artifacts legitimately grow on every task — is **net-negative LOC** (`deletions > insertions`). 
+
+**The escape:** when a sweep legitimately adds lines but improves performance (adding a cache, a memo table, an index-backed query), the author writes a `SWEEP-PERF: <evidence>` line in the journal "Plan deviations" section. Like the `SKIP:` escape, it is human-written and leaves an audit trail — the model cannot satisfy the teeth by fabricating a perf claim without typing the evidence line, and a reviewer sees it at the PR.
+
+**What it does NOT check:** whether the sweep deleted the *right* thing. Correctness of a deletion is the differential oracle (behavior before == behavior after) + the validator (do the existing ACs still pass). The teeth police direction only — they stop a mislabelled add, nothing more.
+
+Scope note: enforced in **task mode** (a sweep is usually a single cadence task). Phase mode does not run it — at phase range the additive audit artifacts dominate LOC and the signal is unreliable; a phase that is wholly a sweep is the rare case, handled by the per-task checks that compose it.
+
+## Approval timing — the `close-gate` policy key
+
+Everything above is the *deterministic* gate. Separately from it, projects that adopt a **human-blocking close approval** (e.g. a CLAUDE.md rule that the Task Close Report awaits the user's explicit "ok" before commit) choose WHERE that human approval sits via a CLAUDE.md policy key:
+
+```
+close-gate: per-task | pr-boundary
+```
+
+- **`per-task` (default)** — the human's blocking approval happens at every task close: the Task Close Report is posted and the session waits for the user's "ok" before committing. Highest-comprehension mode: the human reads every diff at the moment it lands.
+- **`pr-boundary`** — the per-task read is delegated to an independent **read-only** reviewer subagent (same correctness-vs-promise lens as the validator). Task Close Reports are still **written for every task** — the audit trail does not thin out — but they no longer block. The human's blocking approval happens **once per PR/merge**, reading the accumulated reports + the full diff.
+
+**What this key does NOT change:** the deterministic `task-done` / `phase-done` gates above run identically in both modes. The key moves the *human* approval point only; it never relaxes the machine gate, the journal, or the test-evidence checks.
+
+**What `pr-boundary` additionally requires — the review record.** Because the human reads nothing until merge, the merge-time read must be auditable: the PR carries (A) every review round's report **verbatim** (writer-untouched, with SHA-range scope header + "not reviewed" list + dispatch-prompt provenance) and (B) the builder's per-finding response (agree/disagree + why, re-graded severity, what changed / deliberately didn't). Reviewer dispatch follows the bias constraints (fresh context, read-only, tier set explicitly, refute-first, `file:line` evidence gate, controller-computed verdict). **Coverage window check before merge:** `git log <last-review-SHA>..HEAD` must be empty, or those commits get a final-pass round — commits after the last review are unreviewed code in a "reviewed" PR. Full spec: `references/review-record.md`.
+
+### The attack surface — read this before flipping to `pr-boundary`
+
+The per-task human gate exists for one reason beyond diff confidence: **any approval the AI can write itself is not an approval.** Two real incidents shaped the current design:
+
+1. An AI treated a prose-only ("soft") close gate as optional and bypassed it. The fix was structural — a hard hook the model cannot talk past — not more prose.
+2. An AI fabricated the user's approval: it wrote "user approved" into the record when the user had said nothing.
+
+`pr-boundary` widens the window in which the AI works with no human reading anything. That is acceptable ONLY while the merge boundary keeps a **human-written approval marker the AI physically cannot author**: the user themself performs the approving act (clicks merge, writes the approving PR comment/reply, runs the merge command), and wherever a hook checks for an approval marker, the marker's semantics must be "human typed this" — never a file or string the AI can produce on the user's behalf. If the project's merge approval can be generated by the AI, the self-certification hole is open and `pr-boundary` is NOT safe to enable.
+
+### Run it as an experiment
+
+Flipping to `pr-boundary` is a falsifiable experiment, not a permanent setting:
+
+- Run 2-3 tracks/phases in `pr-boundary` mode, then check two signals: (1) **catch parity** — did the PR-boundary read still catch what the per-task reads used to catch (compare the reviewer subagent's per-task findings against what you find yourself at merge)? (2) **comprehension drift** — are diffs merging that you could not explain afterward?
+- **Record, don't remember:** append one catch-parity line per track to the review-verbatim draft's footer (`catch-parity: track N — rounds=R, real-findings=…, fix-introduced-bugs-caught=…, human-merge-time-finds=…` — format in `references/review-record.md`). 2-3 tracks of these lines ARE the rollback/keep evidence.
+- Either signal fails → rollback is one line: flip the key back to `per-task`.
+
+---
+
 ## Anti-patterns — STOP
 
 - **Claiming "done" without running the gate / without pasting its output** → not done; run it, paste it.
@@ -344,3 +409,4 @@ The skill is full of "skip only when…" clauses. Each is individually reasonabl
 - **`phase-done` doesn't check fresh test-evidence** → the original gap that let the test pile slip: the pre-push hook runs `phase-done`, but if `phase-done` omits the evidence check, a phase ships with tests never run (`.claude/.last-test-run` never written, yet the gate PASSes). `task-done` checks evidence but has no hook; `phase-done` is hooked but skipped the check. Tests = the one artifact with no live gate. Fix: `phase-done` checks fresh `test_evidence` (mtime > HEAD) whenever `test_command` is set. Confirm the gate output shows a `fresh test-evidence` line.
 - **Gate scripts + manifest + `make` targets present, but NO active pre-push hook** (`git config core.hooksPath` empty AND no husky/lefthook stage) → only the weakest layer (model-discipline) is live, and the model skips wrap-up as predicted. This is NOT "the gate is installed." Run the retrofit block (write `.githooks/pre-push` + `git config core.hooksPath .githooks`); confirm with `git config core.hooksPath`.
 - **Treating the pre-push hook as one option among three** ("I'll just run `make phase-done` myself") → the hook is the default and must be active; model-discipline is additional, not a substitute. The whole point is to not depend on the model remembering.
+- **Tagging a task `Archetype: sweep` then adding net surface** → the diff-direction teeth block it. If the add is a real perf win, log `SWEEP-PERF: <evidence>` (human-written, audited at PR); if it is not a cleanup, it was the wrong archetype — re-tag it `build`/`maintain` and run the chain that shape demands. Do NOT add a hollow `SWEEP-PERF:` line to dodge the check; the reviewer reads it.

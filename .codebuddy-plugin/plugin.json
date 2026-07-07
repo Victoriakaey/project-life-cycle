@@ -1,0 +1,18 @@
+{
+  "name": "project-lifecycle",
+  "version": "1.0.0",
+  "description": "End-to-end coordinator for traceable, multi-phase software project execution.",
+  "author": {
+    "name": "Jiaqi Duan",
+    "url": "https://github.com/Victoriakaey"
+  },
+  "repository": "https://github.com/Victoriakaey/project-life-cycle",
+  "license": "PolyForm-Perimeter-1.0.1",
+  "keywords": [
+    "project-lifecycle",
+    "workflow",
+    "planning",
+    "handoff",
+    "software-development"
+  ]
+}

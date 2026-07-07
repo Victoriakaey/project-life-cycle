@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Life Cycle"
+  short_description: "Traceable planning and delivery workflow"
+  brand_color: "#2563EB"
+  default_prompt: "Use $project-lifecycle to plan and deliver this project phase with intent gating, traceable execution, smoke testing, handoff notes, and PR-ready closure."

@@ -54,10 +54,9 @@ GitHub auto-generates the release-notes body from PR labels via `.github/release
 | `convention` | Changed | New / changed mandatory convention or Red Flag |
 | `bug` / `fix` | Fixed | Bug fix |
 | `docs` | (often omitted from notes) | Doc-only change; can carry release-notes line if user-visible |
-| `ci` / `tooling` / `sync-script` | (own subsection) | CI workflow, validator, sync script |
+| `ci` / `tooling` | (own subsection) | CI workflow, validator, repo tooling |
 | `dependencies` | (own subsection) | Bumps + lock-file updates |
 | `chore` | (own subsection) | Repo housekeeping not worth a behavior line |
-| `sync` | excluded from notes | Routine live→repo sync commits |
 | `skip-release-notes` | excluded from notes | Explicit opt-out for internal-only churn |
 
 PR with no category label → lands in `Other Changes` catch-all → fix before cutting the release. The validator + PR template should remind authors.
@@ -75,7 +74,6 @@ The 4 rules ARE the audit trail. Skipping any one breaks the chain that lets a f
 
 ## Exempt PRs (no changelog line required)
 
-- Routine `sync:` commits between live and repo (apply `sync` label; excluded from release notes).
 - Internal-only refactors with zero user-visible delta (apply `chore-quiet` or `skip-release-notes`).
 - Test-only additions that don't change behavior (still surface in PR body; label `chore`).
 - Comment-only / formatting-only changes (label `chore`).
@@ -108,7 +106,6 @@ When `[Unreleased]` has accumulated enough to warrant a tag:
 - **Bullets without file / endpoint / command identifiers** ("Improved the cadence" — improved how? which step?) → name the artifact; bullet must be greppable.
 - **Releases cut without renaming `[Unreleased]` first** → next contributor adds entries under the wrong section; rebase to fix or accept the drift in the following release.
 - **Version bumped in only one manifest** (`marketplace.json` ≠ `plugin.json`) → CI validator catches; never bypass.
-- **`sync:` commits surfaced in release notes** because the `sync` label was missing → audit clutter; ensure the `sync` label is the default for `scripts/sync.sh push --commit` invocations.
 - **Deprecation skipped** — feature removed in one release without a prior "Deprecated" section in an earlier release → users discover via breakage. Always announce in `Deprecated` first, remove in a later MAJOR.
 - **Calling everything `feat:`** in commit titles to game the SemVer bump → reviewers catch; `feat` is for user-visible new behavior only.
 
